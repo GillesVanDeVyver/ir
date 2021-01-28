@@ -34,7 +34,38 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
     void addToOffsetList(int offset) {
     	offsetList.add(offset);
     }
-
+    
+    public String toString() { 
+    	String representation="";
+    	representation = representation+docID+":";
+    	representation = representation+score+":";
+    	for (int off : offsetList)
+    		representation = representation+off +",";
+		return representation;
+    } 
+    
+    public static PostingsEntry stringToObj(String representation) {
+    	PostingsEntry result = new PostingsEntry();
+    	String delims1 = "[:]";
+    	String[] split1 = representation.split(delims1);
+		result.docID = Integer.parseInt(split1[0]);
+		result.score = Double.parseDouble(split1[1]);
+    	String delims2 = "[,]";
+    	String[] offsetListString = split1[2].split(delims2);
+    	for (String intString: offsetListString) {
+    		result.addToOffsetList(Integer.parseInt(intString));
+    	}
+		return result;
+    } 
+    
+    
+//	PostingsList result = new PostingsList();
+//	String delims = "[,]";
+//	String[] eStrings = representation.split(delims);
+//	for (String eString: eStrings) {
+//		result.append(PostingsEntry.stringToObj(eString));
+//	}
+//	return result;
 
     //
     // YOUR CODE HERE

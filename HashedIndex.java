@@ -28,12 +28,9 @@ public class HashedIndex implements Index {
     
     public void insert( String token, int docID, int offset ) {
     	PostingsList list = getPostings(token);
-//    	PostingsEntry e = new PostingsEntry();
-//    	e.docID=docID;
     	if (list==null) {
 	    	list = new PostingsList();
     	}
-//    	list.append(e);
     	list.add(docID, offset);
     	index.put(token, list);
     }

@@ -50,9 +50,46 @@ public class PostingsList {
     public void set( PostingsEntry e , int offset) {
     	list.set(offset, e);
     }
+    
+    public String toString() { 
+    	String representation="";
+    	for (PostingsEntry e : list)
+    		representation = representation+e.toString()+";";
+		return representation;
+    } 
+    
+    public static PostingsList stringToObj(String representation) {
+    	PostingsList result = new PostingsList();
+    	String delims = "[;]";
+    	String[] eStrings = representation.split(delims);
+    	for (String eString: eStrings) {
+    		result.append(PostingsEntry.stringToObj(eString));
+    	}
+		return result;
+    } 
 
     // 
     //  YOUR CODE HERE
     //
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
