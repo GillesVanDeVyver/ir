@@ -48,6 +48,7 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
     	PostingsEntry result = new PostingsEntry();
     	String delims1 = "[:]";
     	String[] split1 = representation.split(delims1);
+//    	System.out.println(representation);
 		result.docID = Integer.parseInt(split1[0]);
 		result.score = Double.parseDouble(split1[1]);
     	String delims2 = "[,]";

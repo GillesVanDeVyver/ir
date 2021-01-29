@@ -9,7 +9,9 @@ package ir;
 
 import java.io.*;
 import java.util.*;
+import com.google.common.primitives.Longs;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.*;
 
 
@@ -44,7 +46,6 @@ public class PersistentHashedIndex implements Index {
     /** The dictionary hash table on disk can fit this many entries. */
     public static final long TABLESIZE = 611953L;
     
-
     public static final int DIRENTRYSIZE = 20;
 
 
@@ -68,38 +69,73 @@ public class PersistentHashedIndex implements Index {
      *   A helper class representing one entry in the dictionary hashtable.
      */ 
     public class Entry {
-        long index;
+        long dataPtr;
         long checksum;
-        byte[] entryKey;
+//        byte[] entryKey;
         int dataSize;
         
-        public Entry(String word,long index,int dataSize) { // store checksum
-        	this.index = index;
+        public Entry(String word,long dataPtr,int dataSize) { // store checksum
+        	this.dataPtr = dataPtr;
         	this.dataSize =dataSize;
         	this.checksum = checksum(word);
-            entryKey = new byte[DIRENTRYSIZE];
-            byte[] indexArr = longToByteArray(index);
-            byte[] checksumArr = longToByteArray(checksum);
-            byte[] dataSizeArr = intToByteArray(dataSize);
-        	for (int i =0; i <8;i++) {
-        		entryKey[i] = indexArr[i];
-        	}
-        	for (int i =0; i <8;i++) {
-        		entryKey[i+8] = checksumArr[i];
-        	}
-        	for (int i =0; i <4;i++) {
-        		entryKey[i+16] = dataSizeArr[i];
-        	}
-        	for (int i =0; i <20;i++) {
-        		System.out.println("entryKey[i]: " + entryKey[i]);
-        	}
-        	System.out.println("checksum: " + checksum);
-        	for (int i =0; i <8;i++) {
-        		System.out.println("checksumArr[i]: " + checksumArr[i]);
-        	}
-        	System.out.println("byteArrayToLong(checksumArr): " + byteArrayToLong(checksumArr));
+//            entryKey = new byte[DIRENTRYSIZE];
+//            byte[] indexArr = longToByteArray(index);
+//            byte[] checksumArr = longToByteArray(checksum);
+//            byte[] dataSizeArr = intToByteArray(dataSize);
+//        	for (int i =0; i <8;i++) {
+//        		entryKey[i] = indexArr[i];
+//        	}
+//        	for (int i =0; i <8;i++) {
+//        		entryKey[i+8] = checksumArr[i];
+//        	}
+//        	for (int i =0; i <4;i++) {
+//        		entryKey[i+16] = dataSizeArr[i];
+//        	}
+//        	for (int i =0; i <20;i++) {
+//        		System.out.println("entryKey[i]: " + entryKey[i]);
+//        	}
+//        	System.out.println("checksum: " + checksum);
+//        	for (int i =0; i <8;i++) {
+//        		System.out.println("checksumArr[i]: " + checksumArr[i]);
+//        	}
+//        	System.out.println("byteArrayToLong(checksumArr): " + byteArrayToLong(checksumArr));
         }
+        
+//        public String toString() { 
+//        	String representation="";
+//        	representation = representation+dataPtr+",";
+//        	representation = representation+checksum+",";
+//        	representation = representation+dataSize +",";
+//    		return representation;
+//        } 
+        
+      public ByteBuffer toByteByteBuffer() { 
+    	  
+    	ByteBuffer buffer = ByteBuffer.allocate(24);
+    	buffer.putLong(0, dataPtr);
+    	buffer.putLong(8, checksum);
+    	buffer.putLong(16, dataSize);
+		return buffer;
+      } 
+        
+
     }
+    
+//    public Entry stringToEntry(String representation, String word) {
+//    	String delims = "[,]";
+//    	String[] split = representation.split(delims);
+//    	if (Long.parseLong(split[1])==checksum(word))
+//    			return new Entry(word, Long.parseLong(split[0]),Integer.parseInt(split[2]));
+//    	else
+//    		return null;
+//    }
+    
+//  public Entry arrToEntry(long[] arr, String word) {
+//	  if (arr[1]==checksum(word))
+//		  return new Entry(word, arr[0],arr[2]);
+//	else
+//		return null;
+//}
     
 	public long hash(String word) {
 		byte[] wordBytes = word.getBytes();
@@ -111,44 +147,45 @@ public class PersistentHashedIndex implements Index {
 		return Math.abs(hashValue) % TABLESIZE;
 	}
     
-	public Entry enrtyFromBytes(byte[] entryKey,String word) {
-        byte[] indexArr = new byte[8];
-        byte[] checksumArr = new byte[8];
-        byte[] dataSizeArr = new byte[4];
-    	for (int i =0; i <8;i++) {
-    		indexArr[i]= entryKey[i];
-    	}
-    	for (int i =0; i <8;i++) {
-    		checksumArr[i] = entryKey[i+8];
-    	}
-    	for (int i =0; i <4;i++) {
-    		dataSizeArr[i] = entryKey[i+16];
-    	}
-    	long index = byteArrayToLong(indexArr);
-    	long checksum = byteArrayToLong(checksumArr);
-    	int dataSize = byteArrayToInt(dataSizeArr);
-
-    	if (checksum == checksum(word)) {
-    		System.out.println("checksum matches");
-    		return new Entry(word,index, dataSize);
-    	}
-    	else {
-    		
-    		
-        	for (int i =0; i <20;i++) {
-    		System.out.println("read entryKey[i]: " + entryKey[i]);
-    	}
-    	for (int i =0; i <8;i++) {
-    		System.out.println("read checksumArr[i]: " + checksumArr[i]);
-    	}
-    	System.out.println("read byteArrayToLong(checksumArr): " + byteArrayToLong(checksumArr));
-    		
-    		System.out.println("stored checksum:" +checksum);
-    		System.out.println("calculated checksum:" + checksum(word));
+//	public Entry enrtyFromBytes(byte[] entryKey,String word) {
+//        byte[] indexArr = new byte[8];
+//        byte[] checksumArr = new byte[8];
+//        byte[] dataSizeArr = new byte[4];
+//    	for (int i =0; i <8;i++) {
+//    		indexArr[i]= entryKey[i];
+//    	}
+//    	for (int i =0; i <8;i++) {
+//    		checksumArr[i] = entryKey[i+8];
+//    	}
+//    	for (int i =0; i <4;i++) {
+//    		dataSizeArr[i] = entryKey[i+16];
+//    	}
+//    	long index = byteArrayToLong(indexArr);
+//    	long checksum = byteArrayToLong(checksumArr);
+//    	int dataSize = byteArrayToInt(dataSizeArr);
+//    	
+//    	for (int i =0; i <20;i++) {
+//    		System.out.println("read entryKey[i]: " + entryKey[i]);
+//    	}
+//    	for (int i =0; i <8;i++) {
+//    		System.out.println("read checksumArr[i]: " + checksumArr[i]);
+//    	}
+//    	System.out.println("read byteArrayToLong(checksumArr): " + byteArrayToLong(checksumArr));
+//    		System.out.println("stored checksum:" +checksum);
+//    		System.out.println("calculated checksum:" + checksum(word));
+//    		
+//    	if (checksum == checksum(word)) {
+////    		System.out.println("checksum matches");
+//    		return new Entry(word,index, dataSize);
+//    	}
+//    	else {
+//    		
+//    		
+//        	
 //    		return null;
-    		return new Entry(word,index, dataSize);
-    	}		
-	}
+////    		return new Entry(word,index, dataSize);
+//    	}		
+//	}
 	
 	public long checksum(String word) {
 		byte[] wordBytes = word.getBytes();
@@ -160,47 +197,47 @@ public class PersistentHashedIndex implements Index {
 	}
 	
 
-	public int byteArrayToInt(byte[] array) {
-		int value = 0;
-		for (int i = 0; i < array.length; i++)
-		{
-			long toAdd = (long) array[i]<< (i * 8);
-			if (toAdd ==-1)
-				toAdd=255;
-		   value += toAdd;
-		}
-		return value;
-	}
-	
-	public int byteArrayToLong(byte[] array) {
-		int value = 0;
-		for (int i = 0; i < array.length; i++)
-		{
-			long toAdd = (long) array[i]<< (i * 8);
-			if (toAdd ==-1)
-				toAdd=255;
-		   value += toAdd;
-		}
-		return value;
-	}
-    
-
-    
-    public static  byte[] intToByteArray(int integer){
-    	byte[] bytes = new byte[4];
-    	for (int i = 0; i < 4; i++) {
-    	    bytes[i] = (byte)(integer >>> (i * 8));
-    	}
-    	return bytes;
-    }
-    
-    public static  byte[] longToByteArray(long l){
-    	byte[] bytes = new byte[8];
-    	for (int i = 0; i < 8; i++) {
-    	    bytes[i] = (byte)(l >>> (i * 8));
-    	}
-    	return bytes;
-    }
+//	public int byteArrayToInt(byte[] array) {
+//		int value = 0;
+//		for (int i = 0; i < array.length; i++)
+//		{
+//			long toAdd = (long) array[i]<< (i * 8);
+//			if (toAdd ==-1)
+//				toAdd=255;
+//		   value += toAdd;
+//		}
+//		return value;
+//	}
+//	
+//	public int byteArrayToLong(byte[] array) {
+//		int value = 0;
+//		for (int i = 0; i < array.length; i++)
+//		{
+//			long toAdd = (long) array[i]<< (i * 8);
+//			if (toAdd ==-1)
+//				toAdd=255;
+//		   value += toAdd;
+//		}
+//		return value;
+//	}
+//    
+//
+//    
+//    public static  byte[] intToByteArray(int integer){
+//    	byte[] bytes = new byte[4];
+//    	for (int i = 0; i < 4; i++) {
+//    	    bytes[i] = (byte)(integer >>> (i * 8));
+//    	}
+//    	return bytes;
+//    }
+//    
+//    public static  byte[] longToByteArray(long l){
+//    	byte[] bytes = new byte[8];
+//    	for (int i = 0; i < 8; i++) {
+//    	    bytes[i] = (byte)(l >>> (i * 8));
+//    	}
+//    	return bytes;
+//    }
 
 
     // ==================================================================
@@ -249,7 +286,7 @@ public class PersistentHashedIndex implements Index {
      */ 
     String readData( long ptr, int size ) {
         try {
-        	System.out.println("ptr data " + ptr);
+//        	System.out.println("ptr data " + ptr);
             dataFile.seek( ptr );
             byte[] data = new byte[size];
             dataFile.readFully( data );
@@ -259,6 +296,14 @@ public class PersistentHashedIndex implements Index {
             return null;
         }
     }
+    
+//    private void writeToPosition(String filename, int data, long position) 
+//    		  throws IOException {
+//    		    RandomAccessFile writer = new RandomAccessFile(filename, "rw");
+//    		    writer.seek(position);
+//    		    writer.writeInt(data);
+//    		    writer.close();
+//    		}
 
 
     // ==================================================================
@@ -274,36 +319,44 @@ public class PersistentHashedIndex implements Index {
     int writeEntry( Entry entry, long index ) {
     	int collisions =0;
         try {
-        	dictionaryFile.seek( ptrFromIndex(index) ); 
-            byte[] read = new byte[DIRENTRYSIZE];
-            byte[] data = entry.entryKey;
-       	 System.out.println("data[0] writing to file: " + data[0]);
-            System.out.println("ptrFromIndex(index) writing : " + ptrFromIndex(index));
+//            byte[] read = new byte[DIRENTRYSIZE];
+//       	 System.out.println("data[0] writing to file: " + data[0]);
+//            System.out.println("ptrFromIndex(index) writing : " + ptrFromIndex(index));
 
             try {
-            	
-//            	dictionaryFile.readFully( read );
-//            if (read[0] != 0 ) {
+            	dictionaryFile.seek( ptrFromIndex(index) ); 
+            	long dataPtr =dictionaryFile.readLong();
+//            	System.out.println("readdataPtr" + dataPtr);
+            if (dataPtr != 0 ) {
 //            	System.out.println("collision");
-//            	collisions++;
-//            	long newIndex = index+1;
-//            	if (newIndex>=TABLESIZE)
-//            		newIndex =0;
+            	collisions++;
+            	long newIndex = index+1;
+            	if (newIndex>=TABLESIZE)
+            		newIndex =0;
 //            	System.out.println(newIndex);
-//            	return collisions + writeEntry( entry,  newIndex );
-//            }
-//            else{
-            	dictionaryFile.write( data );	
-//            }
+            	return collisions + writeEntry( entry,  newIndex );
+            }
+            else{
+            	writeEntryAtIndex(entry,index);
+            }
         	} catch ( EOFException e ) {
         		System.out.println("EOFEindex: " + index);
-        		dictionaryFile.write( data );	
+        		writeEntryAtIndex(entry,index);	
         	}
         } catch ( IOException e ) {
         	System.out.println("errorind: " + index);
             e.printStackTrace();
         }
         return collisions;
+    }
+    
+    public void writeEntryAtIndex(Entry e, long index) throws IOException {
+    	dictionaryFile.seek( ptrFromIndex(index) ); 
+    	dictionaryFile.writeLong(e.dataPtr);
+//        System.out.println("Storechecksum " + e.checksum);
+
+    	dictionaryFile.writeLong(e.checksum);
+    	dictionaryFile.writeInt(e.dataSize);
     }
 
 
@@ -318,21 +371,25 @@ public class PersistentHashedIndex implements Index {
 
         try {
         	dictionaryFile.seek( ptrFromIndex(index) );
-            byte[] entryKey = new byte[DIRENTRYSIZE];
-            dictionaryFile.readFully( entryKey );
-            System.out.println("entryKey read: " +entryKey);
-            Entry readResult = enrtyFromBytes(entryKey, word);
-            System.out.println("readResult.checksum: " +readResult.checksum);
-            System.out.println("readResult.index: " +readResult.index);
-            if (readResult==null) { //checksum didn't match
+            
+            long readDataPtr = dictionaryFile.readLong();
+            System.out.println("readDataPtr " + readDataPtr);
+
+            long readChecksum = dictionaryFile.readLong();
+            System.out.println("readChecksum " + readChecksum);
+//            System.out.println("hash(word) " + hash(word));
+
+            int readDataSize = dictionaryFile.readInt();
+            System.out.println("readDataSize " + readDataSize);
+
+            if (readChecksum!=checksum(word)) { //checksum didn't match
             	long newIndex = index+1;
             	if (newIndex>=TABLESIZE)
             		newIndex =0;
-            	System.out.println("newIndex: " +newIndex);
-            	return readEntry(ptrFromIndex(newIndex), word);
+            	return readEntry(newIndex, word);
             }
             else {
-            	return readResult;
+            	return new Entry(word,readDataPtr,readDataSize);
             }
         } catch ( IOException e ) {
             e.printStackTrace();
@@ -398,23 +455,38 @@ public class PersistentHashedIndex implements Index {
             // Write the dictionary and the postings list
             
             for (java.util.Map.Entry<String, PostingsList> e : index.entrySet()) {
-            	
+            	String word = e.getKey();
                 // write data
             	PostingsList pList = e.getValue();
+            	
+            	 if (word.equals("movie")) {
+            		 System.out.println("storing representation : "+ pList.toString());
+            	 }
+
+            	
             	int dataLength = writeData( pList.toString(), dataPtr);
-            	dataPtr+=dataLength;
+            	
+//            	System.out.println("dataPtr " + dataPtr);
             	
             	// write dictionary
-                String word = e.getKey();
-                System.out.println("word: " + word);
+                
                 Entry dirEntry = new Entry(word,dataPtr, dataLength);
-                System.out.println("dirEntry.checksum: " + dirEntry.checksum);
-                System.out.println("dirEntry.index: " + dirEntry.index);
 
                 dirIndex = hash(word);
-                System.out.println("dirIndex " + dirIndex);
+                if (word.equals("movie")) {
+                	System.out.println("storing word " + word);
+                	System.out.println("storing dataPtr " + dataPtr);
+                	System.out.println("storing dirEntry.dataSize " + dirEntry.dataSize);
+                	System.out.println("storing dirEntry.checksum " + dirEntry.checksum);
+                	System.out.println("storing dirEntry.dataPtr " + dirEntry.dataPtr);
+                	System.out.println("storing dirIndex " + dirIndex);
+                }
 
-                collisions += writeEntry(dirEntry, dirIndex);
+                	collisions += writeEntry(dirEntry, dirIndex);
+
+                	dataPtr+=dataLength;
+//                System.out.println("hash(word) " + hash(word));
+//                collisions += writeEntry(dirEntry, dirIndex);
             }
             
 
@@ -423,6 +495,7 @@ public class PersistentHashedIndex implements Index {
         }
         System.err.println( collisions + " collisions." );
     }
+    
     
 
 
@@ -436,12 +509,8 @@ public class PersistentHashedIndex implements Index {
      */
     public PostingsList getPostings( String token ) {
 		 long dirIndex = hash(token);
-		 System.out.println("dirIndex" + dirIndex);
 		 Entry dirEntry = readEntry( dirIndex, token);
-		 System.out.println("dirIndex" + dirEntry);
-		 System.out.println("dirIndex.index" + dirEntry.index);
-		 System.out.println("dirEntry.dataSize" + dirEntry.dataSize);
-		 String dataString = readData( dirEntry.index, dirEntry.dataSize);
+		 String dataString = readData( dirEntry.dataPtr, dirEntry.dataSize);
 		 return PostingsList.stringToObj(dataString);
     }
    
