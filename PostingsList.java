@@ -59,8 +59,6 @@ public class PostingsList {
     } 
     
     public static PostingsList stringToObj(String representation) {
-    	System.out.println(representation);
-
     	PostingsList result = new PostingsList();
     	String delims = "[;]";
     	String[] eStrings = representation.split(delims);
