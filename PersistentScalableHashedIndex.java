@@ -42,11 +42,16 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
     
     public PersistentScalableHashedIndex() {
         try {
+        	dictionaryFile = new RandomAccessFile( INDEXDIR + "/" + DICTIONARY_FNAME, "rw" );
+            dataFile = new RandomAccessFile( INDEXDIR + "/" + DATA_FNAME, "rw" );
+        } catch ( FileNotFoundException e ) {
+        	try {
             dictionaryFile = new RandomAccessFile( INDEXDIR + "/" + INTERMEDIATE_DICTIONARY_FNAME +0, "rw" );
             dataFile = new RandomAccessFile( INDEXDIR + "/" + INTERMEDIATE_DATA_FNAME + 0, "rw" );
-        } catch ( IOException e ) {
+        }catch ( IOException e1 ) {
             e.printStackTrace();
-        }
+        } }
+ 
 
         try {
             readDocInfo();
@@ -444,7 +449,13 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
         intermediateList.add(dataFile);
         merge(true);
         
-        
+        try {
+            readDocInfo();
+        } catch ( FileNotFoundException e ) {
+        	
+        } catch ( IOException e ) {
+            e.printStackTrace();
+        }
         // wait for threads to finish
         System.err.println( "done!" );
     }
