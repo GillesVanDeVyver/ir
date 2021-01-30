@@ -8,21 +8,26 @@
 package ir;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+
+import com.google.common.collect.ObjectArrays;
 
 public class PostingsList {
     
     /** The postings list */
-    private ArrayList<PostingsEntry> list = new ArrayList<PostingsEntry>();
+    private LinkedList<PostingsEntry> list = new LinkedList<PostingsEntry>();
 
 
     /** Number of postings in this list. */
     public int size() {
-    return list.size();
+    	return list.size();
     }
 
     /** Returns the ith posting. */
     public PostingsEntry get( int i ) {
-    return list.get( i );
+    	return list.get( i );
     }
     
     public void append( PostingsEntry e ) {
@@ -66,7 +71,35 @@ public class PostingsList {
     		result.append(PostingsEntry.stringToObj(eString));
     	}
 		return result;
-    } 
+    }
+
+	public static PostingsList merge(PostingsList pList1, PostingsList pList2) {
+		System.out.println("pList1.list " + pList1.list);
+		System.out.println("pList2.list " + pList2.list);
+		PostingsEntry lastEntry1 = pList1.get(pList1.size()-1);
+		PostingsEntry firstEntry2 = pList2.get(0);
+		boolean skipFirst = false;
+		if (lastEntry1.docID==firstEntry2.docID) {
+			lastEntry1.offsetList = PostingsEntry.mergeOffsetLists(lastEntry1.offsetList, firstEntry2.offsetList);
+			skipFirst = true;
+		}
+		PostingsList result = new PostingsList();
+		result.list =  mergeLists(pList1, pList2, skipFirst);
+		
+		return result;
+	}
+
+	private static LinkedList<PostingsEntry> mergeLists(PostingsList pList1, PostingsList pList2, boolean skipFirst) {
+		if (skipFirst) {
+			pList2.list.remove();
+		}
+		LinkedList<PostingsEntry> newList = new LinkedList<PostingsEntry>();
+    	newList.addAll(pList1.list);
+    	newList.addAll(pList2.list);
+    	return newList;
+		
+	} 
+	
 
     // 
     //  YOUR CODE HERE

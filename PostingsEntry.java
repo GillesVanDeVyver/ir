@@ -7,10 +7,7 @@
 
 package ir;
 
-import java.util.HashMap;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.StringTokenizer;
+
 import java.io.Serializable;
 import java.util.*; 
 
@@ -34,6 +31,15 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
     void addToOffsetList(int offset) {
     	offsetList.add(offset);
     }
+    
+    static List<Integer> mergeOffsetLists(List<Integer> offsetList1, List<Integer> offsetList2) {
+    	List<Integer> newList = new ArrayList<Integer>();
+    	newList.addAll(offsetList1);
+    	newList.addAll(offsetList2);
+    	return newList;
+    }
+    
+    
     
     public String toString() { 
     	String representation="";

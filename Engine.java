@@ -17,7 +17,9 @@ public class Engine {
 
     /** The inverted index. */
     //Index index = new HashedIndex();
-    Index index = new PersistentHashedIndex();
+//    Index index = new PersistentHashedIndex();
+    Index index = new PersistentScalableHashedIndex();
+    
 
     /** The indexer creating the search index. */
     Indexer indexer;
@@ -122,7 +124,7 @@ public class Engine {
                 i++;
                 is_indexing = false;
             } else {
-                System.err.println( "Unknown option: " + args[i] );
+            	is_indexing = false;
                 break;
             }
         }                   
