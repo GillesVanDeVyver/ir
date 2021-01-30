@@ -11,6 +11,8 @@ import java.io.*;
 import java.util.*;
 import com.google.common.primitives.Longs;
 
+import ir.PersistentHashedIndex.Entry;
+
 import java.nio.ByteBuffer;
 import java.nio.charset.*;
 
@@ -320,25 +322,24 @@ public class PersistentHashedIndex implements Index {
     }
     
     Entry readEntryAndCheck( long index ,long checksum, RandomAccessFile file) {  
-    	System.out.println("index " + index);
-    	System.out.println("file " + file);
+//    	System.out.println("index " + index);
+//    	System.out.println("file " + file);
         try {
-        	System.out.println("ok1 ");
+//        	System.out.println("ok1 ");
         	file.seek( ptrFromIndex(index) );
-        	System.out.println("ok2 ");
+//        	System.out.println("ok2 ");
             long readDataPtr = file.readLong();
-            System.out.println("ok3 ");
-            if (readDataPtr == 0) {
-            	System.out.println("readDataPtr == 0 " );
-            	return null;
-            }
-            else {
-            	System.out.println("readDataPtr != 0 " );
-            }
+//            System.out.println("ok3 ");
+
+
             	
             long readChecksum = file.readLong();
-            System.out.println("readChecksum " + readChecksum);
+//            System.out.println("readChecksum " + readChecksum);
             int readDataSize = file.readInt();
+            if (readDataSize == 0) {
+//            	System.out.println("readDataPtr == 0 " );
+            	return null;
+            }
             if (readChecksum!=checksum) { //checksum didn't match
             	long newIndex = index+1;
             	if (newIndex>=TABLESIZE)
@@ -346,7 +347,7 @@ public class PersistentHashedIndex implements Index {
             	return readEntryAndCheck(newIndex, checksum);
             }
             else {
-            	return new Entry(checksum,readDataPtr,readDataSize);
+            	return new Entry(checksum,readDataPtr,readDataSize, index);
             }
         } 
         catch ( EOFException e ) {
@@ -356,6 +357,7 @@ public class PersistentHashedIndex implements Index {
             return null;
         }
     }
+    
     
     public long ptrFromIndex(long index) {
     	return index*DIRENTRYSIZE;

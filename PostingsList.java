@@ -74,8 +74,8 @@ public class PostingsList {
     }
 
 	public static PostingsList merge(PostingsList pList1, PostingsList pList2) {
-		System.out.println("pList1.list " + pList1.list);
-		System.out.println("pList2.list " + pList2.list);
+//		System.out.println("pList1.list " + pList1.list);
+//		System.out.println("pList2.list " + pList2.list);
 		PostingsEntry lastEntry1 = pList1.get(pList1.size()-1);
 		PostingsEntry firstEntry2 = pList2.get(0);
 		boolean skipFirst = false;
@@ -85,17 +85,22 @@ public class PostingsList {
 		}
 		PostingsList result = new PostingsList();
 		result.list =  mergeLists(pList1, pList2, skipFirst);
-		
+		System.out.println("result " + result);
+		System.out.println("pList1 " + pList1);
+		System.out.println("pList2 " + pList2);
 		return result;
 	}
 
 	private static LinkedList<PostingsEntry> mergeLists(PostingsList pList1, PostingsList pList2, boolean skipFirst) {
+		LinkedList<PostingsEntry>  pList2ToMerge = (LinkedList<PostingsEntry>) pList2.list.clone();
 		if (skipFirst) {
-			pList2.list.remove();
+			pList2ToMerge.remove();
 		}
 		LinkedList<PostingsEntry> newList = new LinkedList<PostingsEntry>();
     	newList.addAll(pList1.list);
-    	newList.addAll(pList2.list);
+    	newList.addAll(pList2ToMerge);
+    	System.out.println("newList " + newList);
+
     	return newList;
 		
 	} 

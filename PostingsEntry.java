@@ -34,8 +34,15 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
     
     static List<Integer> mergeOffsetLists(List<Integer> offsetList1, List<Integer> offsetList2) {
     	List<Integer> newList = new ArrayList<Integer>();
-    	newList.addAll(offsetList1);
-    	newList.addAll(offsetList2);
+    	if (offsetList2.get(0)> offsetList1.get(0)) {
+        	newList.addAll(offsetList1);
+        	newList.addAll(offsetList2);
+    	}
+    	else {
+    		newList.addAll(offsetList2);
+        	newList.addAll(offsetList1);
+    	}
+
     	return newList;
     }
     
