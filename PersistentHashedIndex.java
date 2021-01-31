@@ -239,8 +239,6 @@ public class PersistentHashedIndex implements Index {
                 int readDataSize = dictionaryFile.readInt();
             if (readDataSize != 0 ) {
             	long newIndex = index+1;
-            	if (newIndex>=TABLESIZE)
-            		newIndex =0;
             	return 1 + writeEntry( entry,  newIndex, file );
             }
             else{
@@ -344,8 +342,6 @@ public class PersistentHashedIndex implements Index {
             }
             if (readChecksum!=checksum) { //checksum didn't match
             	long newIndex = index+1;
-            	if (newIndex>=TABLESIZE)
-            		newIndex =0;
             	return readEntryAndCheck(newIndex, checksum);
             }
             else {
