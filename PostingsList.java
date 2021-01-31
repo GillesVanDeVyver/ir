@@ -68,6 +68,7 @@ public class PostingsList {
     	String delims = "[;]";
     	String[] eStrings = representation.split(delims);
     	for (String eString: eStrings) {
+    		
     		result.append(PostingsEntry.stringToObj(eString));
     	}
 		return result;

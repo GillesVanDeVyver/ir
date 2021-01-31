@@ -19,8 +19,11 @@ import ir.PersistentHashedIndex.Entry;
 
 public class PersistentScalableHashedIndex extends PersistentHashedIndex implements Index  {
 	
-    public static final int TOKENTHRESHOLD = 1;
+//    public static final int TOKENTHRESHOLD = 500000; //med daviswiki
+    public static final int TOKENTHRESHOLD = 2500000; //full daviswiki
 
+//    public static final int TOKENTHRESHOLD = 2;
+//    public static final int TOKENTHRESHOLD = 30000;
     public static final String INTERMEDIATE_DICTIONARY_FNAME = "tempDictionary";
 
     /** The dictionary file name */
@@ -44,15 +47,15 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
 
     
     public PersistentScalableHashedIndex() {
-        try {
-        	dictionaryFile = new RandomAccessFile( INDEXDIR + "/" + DICTIONARY_FNAME, "rw" );
-            dataFile = new RandomAccessFile( INDEXDIR + "/" + DATA_FNAME, "rw" );
-        } catch ( FileNotFoundException e ) {
+//        try {
+//        	dictionaryFile = new RandomAccessFile( INDEXDIR + "/" + DICTIONARY_FNAME, "rw" );
+//            dataFile = new RandomAccessFile( INDEXDIR + "/" + DATA_FNAME, "rw" );
+//        } catch ( FileNotFoundException e ) {
         	try {
             dictionaryFile = new RandomAccessFile( INDEXDIR + "/" + INTERMEDIATE_DICTIONARY_FNAME +0, "rw" );
             dataFile = new RandomAccessFile( INDEXDIR + "/" + INTERMEDIATE_DATA_FNAME + 0, "rw" );
         	}catch ( FileNotFoundException e2 ) {}
-        	}
+//        	}
  
 
         try {
@@ -76,39 +79,8 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
 		index.put(token, list);
     	nbTokensCurrent++;
     	if (nbTokensCurrent>TOKENTHRESHOLD) {
-    		    		
-    		nbTokensCurrent = 0;
-    		// store index on disk
-    		try {
-    			dataWritePtr = 0;
-				writeIndex();
+    		storeIndexIntermediate();
 
-
-			} catch (IOException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-    		intermediateList.add(dictionaryFile);
-    		intermediateList.add(dataFile);
-    		
-    		// clear index in main memory
-			index = new HashMap<String,PostingsList>();
-			try {
-				this.writeDocInfo();
-			} catch (IOException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-    		// clear docNames (main memory)
-			docNames.clear();
-			
-    		// clear docLengths (main memory)
-			docLengths.clear();
-    		
-    		// reset free pointer
-    		dataWritePtr = 0;
-    		
-    		//recreate dictionaryFile and dataFile
     		
     		
     		
@@ -138,6 +110,45 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
 
     }
 
+	private void storeIndexIntermediate() {
+		
+		nbTokensCurrent = 0;
+		// store index on disk
+		try {
+			dataWritePtr = 0;
+			writeIndex();
+		
+		
+		} catch (IOException e1) {
+		// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		intermediateList.add(dictionaryFile);
+		intermediateList.add(dataFile);
+		
+		// clear index in main memory
+		index = new HashMap<String,PostingsList>();
+		try {
+			this.writeDocInfo();
+		} catch (IOException e1) {
+		// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		// clear docNames (main memory)
+		docNames.clear();
+		
+		// clear docLengths (main memory)
+		docLengths.clear();
+		
+		// reset free pointer
+		dataWritePtr = 0;
+		
+		//recreate dictionaryFile and dataFile
+		
+	}
+
+
+
 	private void merge(boolean cleanup) {
 		if(intermediateList.size()>=4) {
 //			System.out.println("merge");
@@ -154,8 +165,8 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
 				if (cleanup) {
 					resultDict = new RandomAccessFile( INDEXDIR + "/" + DICTIONARY_FNAME, "rw" );
 					resultData = new RandomAccessFile( INDEXDIR + "/" + DATA_FNAME, "rw" );
-					dictionaryFile =resultDict;
-					dataFile = resultData;
+//					dictionaryFile =resultDict;
+//					dataFile = resultData;
 //					System.out.println("resultDict final" + resultDict);
 				}
 				else {
@@ -176,6 +187,10 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
 				if (!cleanup) {
 					intermediateList.add(resultDict);
 					intermediateList.add(resultData);
+				}
+				else {
+					dictionaryFile =resultDict;
+					dataFile = resultData;
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -265,7 +280,8 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
 
 
 
-	private void wirteMergedEntry(Entry entry1, Entry entry2, RandomAccessFile resultDict, long ind, long resultDataPtr, int resultDataSize ) {
+	private void wirteMergedEntry(Entry entry1, Entry entry2, RandomAccessFile resultDict,
+			long ind, long resultDataPtr, int resultDataSize ) {
 //		System.out.println("wirteMergedEntry called");
 		
 		
@@ -369,16 +385,25 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
 
 	private int writeMergedData(Entry entry1, Entry entry2, long ind, long dataPtr, RandomAccessFile firstData,
 			RandomAccessFile secondData, RandomAccessFile resultDataFile ) {
+		try {
 //		int resultDataSize = entry1.dataSize+entry2.dataSize;
 		
 		
 //		Entry mergedEntry = new Entry(entry1.checksum,dataPtr,resultDataSize);
 //		writeEntry(mergedEntry, ind, resultDict);
 //		System.out.println("readData( entry1.dataPtr, entry1.dataSize)" + readData( entry1.dataPtr, entry1.dataSize));
-//		System.out.println("dataFile1" + dataFile1);
 //		System.out.println("readData( entry2.dataPtr, entry2.dataSize)" + readData( entry2.dataPtr, entry2.dataSize));
-//		System.out.println("dataFile2" + dataFile2);
-		
+//		System.out.println("firstData" + firstData);
+//		System.out.println("secondData" + secondData);
+//		System.out.println("customread(firstData)" + customread(firstData));
+//		System.out.println("customread(secondData)" + customread(secondData));
+
+//		System.out.println("entry1.dataPtr" + entry1.dataPtr);
+//		System.out.println("entry2.dataPtr" + entry2.dataPtr);
+//		System.out.println("entry1.dataSize" + entry1.dataSize);
+//		System.out.println("entry2.dataSize" + entry2.dataSize);
+//		System.out.println("entry1.checksum" + entry1.checksum);
+//		System.out.println("entry2.checksum" + entry2.checksum);
 
 		PostingsList pList1 = PostingsList.stringToObj(readData( entry1.dataPtr, entry1.dataSize, firstData));
 		
@@ -391,14 +416,19 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
 //		System.out.println("pList2 " + pList2);
 //		System.out.println("pList3 " + pList3);
 //
+//		System.out.println("readData( entry1.dataPtr, entry1.dataSize)" + readData( entry1.dataPtr, entry1.dataSize, firstData));
+//		System.out.println("readData( entry2.dataPtr, entry2.dataSize)" + readData( entry2.dataPtr, entry2.dataSize, secondData));
+//		System.out.println("firstData" + firstData);
+//		System.out.println("secondData" + secondData);
+//		System.out.println("customread(firstData)" + customread(firstData));
+//		System.out.println("customread(secondData)" + customread(secondData));
 //		System.out.println("entry1.dataPtr" + entry1.dataPtr);
 //		System.out.println("entry2.dataPtr" + entry2.dataPtr);
 //		System.out.println("entry1.dataSize" + entry1.dataSize);
 //		System.out.println("entry2.dataSize" + entry2.dataSize);
 //		System.out.println("entry1.checksum" + entry1.checksum);
 //		System.out.println("entry2.checksum" + entry2.checksum);
-//		System.out.println("customread(secondData)" + customread(secondData));
-//		System.out.println("customread(firstData)" + customread(firstData));
+
 //
 //		System.out.println("readData( entry2.dataPtr, entry2.dataSize, secondData)" + readData( entry2.dataPtr, entry2.dataSize, secondData));
 //		System.out.println("readData( entry1.dataPtr, entry1.dataSize, secondData)" + readData( entry1.dataPtr, entry1.dataSize, firstData));
@@ -406,6 +436,22 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
 //		System.out.println("writing to merge result 4 mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm" + pList3.toString());
 		
 		return writeData( pList3.toString(), dataPtr,resultDataFile);
+		}
+		catch (Exception e) {
+			System.out.println("readData( entry1.dataPtr, entry1.dataSize)" + readData( entry1.dataPtr, entry1.dataSize, firstData));
+			System.out.println("readData( entry2.dataPtr, entry2.dataSize)" + readData( entry2.dataPtr, entry2.dataSize, secondData));
+			System.out.println("firstData" + firstData);
+			System.out.println("secondData" + secondData);
+			System.out.println("customread(firstData)" + customread(firstData));
+			System.out.println("customread(secondData)" + customread(secondData));
+			System.out.println("entry1.dataPtr" + entry1.dataPtr);
+			System.out.println("entry2.dataPtr" + entry2.dataPtr);
+			System.out.println("entry1.dataSize" + entry1.dataSize);
+			System.out.println("entry2.dataSize" + entry2.dataSize);
+			System.out.println("entry1.checksum" + entry1.checksum);
+			System.out.println("entry2.checksum" + entry2.checksum);
+			throw e;
+		}
 	}
 	
     String customread( RandomAccessFile file) {
@@ -436,15 +482,9 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
 		System.out.println("cleanup");
         System.err.println( index.keySet().size() + " unique words" );
         System.err.print( "Writing index to disk..." );
-        try {
-        	dataWritePtr = 0;
-			writeIndex();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-        intermediateList.add(dictionaryFile);
-        intermediateList.add(dataFile);
+        storeIndexIntermediate();
+//        intermediateList.add(dictionaryFile);
+//        intermediateList.add(dataFile);
         merge(true);
         
         try {
@@ -478,27 +518,27 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
         int counter = 0;
         String lastLine = readlastDocInfo();
         String lastDocName = "";
-        int lastDocId =0;
+//        int lastDocId =0;
         if (lastLine!= null) {
             String[] lastLineData = lastLine.split(";");
-            lastDocId =new Integer(lastLineData[0]);
+//            lastDocId =new Integer(lastLineData[0]);
             lastDocName = new String(lastLineData[1]);
         }
 
-        System.out.println("lastDocNameaaaa " + lastDocName);
+//        System.out.println("lastDocNameaaaa " + lastDocName);
         for (Map.Entry<Integer,String> entry : docNames.entrySet()) {
             Integer key = entry.getKey();
             String DocName = entry.getValue();
-            System.out.println("read name " +entry.getValue() );
+//            System.out.println("read name " +entry.getValue() );
             if (!DocName.equals(lastDocName)) {
-            	System.out.println("new name");
+//            	System.out.println("new name");
 	            String docInfoEntry = (key)+  ";" + entry.getValue() + ";" + docLengths.get(key) + "\n";
 	            fout.write( docInfoEntry.getBytes());
 	            counter++;
             }
-            else {
-            	System.out.println("old name");
-            }
+//            else {
+//            	System.out.println("old name");
+//            }
         }
         NbDocsSeen+= counter;
         fout.close();

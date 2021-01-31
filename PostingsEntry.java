@@ -58,6 +58,9 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
     } 
     
     public static PostingsEntry stringToObj(String representation) {
+		try {
+//			System.out.println("representation entry" + representation);
+
     	PostingsEntry result = new PostingsEntry();
     	String delims1 = "[:]";
     	String[] split1 = representation.split(delims1);
@@ -66,9 +69,16 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
     	String delims2 = "[,]";
     	String[] offsetListString = split1[2].split(delims2);
     	for (String intString: offsetListString) {
+
     		result.addToOffsetList(Integer.parseInt(intString));
+
     	}
 		return result;
+		}
+		catch (Exception e) {
+			System.out.println("representation entry" + representation);
+			throw e;
+		}
     } 
     
     

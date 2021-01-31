@@ -46,8 +46,9 @@ public class PersistentHashedIndex implements Index {
     public static final String DOCINFO_FNAME = "docInfo";
 
     /** The dictionary hash table on disk can fit this many entries. */
-//    public static final long TABLESIZE = 3499999L;
-    public static final long TABLESIZE = 31L;
+    public static final long TABLESIZE = 3499999L;
+//    public static final long TABLESIZE = 17L;
+//    public static final long TABLESIZE = 599999L;
    
     public static final int DIRENTRYSIZE = 20;
 
@@ -233,8 +234,10 @@ public class PersistentHashedIndex implements Index {
 
             try {
             	file.seek( ptrFromIndex(index) ); 
-            	long dataPtr =file.readLong();
-            if (dataPtr != 0 ) {
+                long readDataPtr = dictionaryFile.readLong();
+                long readChecksum = dictionaryFile.readLong();
+                int readDataSize = dictionaryFile.readInt();
+            if (readDataSize != 0 ) {
             	collisions++;
             	long newIndex = index+1;
             	if (newIndex>=TABLESIZE)
