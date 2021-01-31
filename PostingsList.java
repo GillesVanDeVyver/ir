@@ -85,9 +85,9 @@ public class PostingsList {
 		}
 		PostingsList result = new PostingsList();
 		result.list =  mergeLists(pList1, pList2, skipFirst);
-		System.out.println("result " + result);
-		System.out.println("pList1 " + pList1);
-		System.out.println("pList2 " + pList2);
+//		System.out.println("result " + result);
+//		System.out.println("pList1 " + pList1);
+//		System.out.println("pList2 " + pList2);
 		return result;
 	}
 
@@ -99,7 +99,7 @@ public class PostingsList {
 		LinkedList<PostingsEntry> newList = new LinkedList<PostingsEntry>();
     	newList.addAll(pList1.list);
     	newList.addAll(pList2ToMerge);
-    	System.out.println("newList " + newList);
+//    	System.out.println("newList " + newList);
 
     	return newList;
 		

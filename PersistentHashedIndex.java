@@ -47,7 +47,7 @@ public class PersistentHashedIndex implements Index {
 
     /** The dictionary hash table on disk can fit this many entries. */
 //    public static final long TABLESIZE = 3499999L;
-    public static final long TABLESIZE = 17L;
+    public static final long TABLESIZE = 31L;
    
     public static final int DIRENTRYSIZE = 20;
 
@@ -185,7 +185,7 @@ public class PersistentHashedIndex implements Index {
      *  Reads data from the given file
      */ 
     String readData( long ptr, int size, RandomAccessFile file) {
-    	System.out.println("read");
+//    	System.out.println("read");
         try {
         	file.seek( ptr );
             byte[] data = new byte[size];
@@ -249,7 +249,7 @@ public class PersistentHashedIndex implements Index {
         		writeEntryAtIndex(entry,index, file);	
         	}
         } catch ( IOException e ) {
-        	System.out.println("errorind: " + index);
+        	System.err.println("errorind: " + index);
             e.printStackTrace();
         }
         return collisions;
@@ -371,7 +371,7 @@ public class PersistentHashedIndex implements Index {
      *
      * @throws IOException  { exception_description }
      */
-    private void writeDocInfo() throws IOException {
+    public void writeDocInfo() throws IOException {
         FileOutputStream fout = new FileOutputStream( INDEXDIR + "/docInfo", true );
         for (Map.Entry<Integer,String> entry : docNames.entrySet()) {
             Integer key = entry.getKey();
@@ -460,15 +460,15 @@ public class PersistentHashedIndex implements Index {
      *  if the term is not in the index.
      */
     public PostingsList getPostings( String token ) {
-    	System.out.println("token " + token);
+//    	System.out.println("token " + token);
 		 long dirIndex = hash(token);
-		 System.out.println("dirIndex " + dirIndex);
-		 System.out.println("checksum(token) " + checksum(token));
+//		 System.out.println("dirIndex " + dirIndex);
+//		 System.out.println("checksum(token) " + checksum(token));
 		 Entry dirEntry = readEntryAndCheck( dirIndex, checksum(token));
 		 String dataString = readData( dirEntry.dataPtr, dirEntry.dataSize);
-		 System.out.println("dataString " + dataString);
+//		 System.out.println("dataString " + dataString);
 
-		 System.out.println("getPostingsResult " + PostingsList.stringToObj(dataString));
+//		 System.out.println("getPostingsResult " + PostingsList.stringToObj(dataString));
 		 return PostingsList.stringToObj(dataString);
     }
    
