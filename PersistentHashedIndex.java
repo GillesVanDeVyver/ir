@@ -46,10 +46,10 @@ public class PersistentHashedIndex implements Index {
     public static final String DOCINFO_FNAME = "docInfo";
 
     /** The dictionary hash table on disk can fit this many entries. */
-    public static final long TABLESIZE = 3499999L;
+//    public static final long TABLESIZE = 3499999L;
 //    public static final long TABLESIZE = 17L;
 //    public static final long TABLESIZE = 599999L;
-   
+    public static final long TABLESIZE = 611953L;
     public static final int DIRENTRYSIZE = 20;
 
 
@@ -64,7 +64,7 @@ public class PersistentHashedIndex implements Index {
     
     long dataWritePtr = 0L;
     
-    int collisions = 0;
+//    int collisions = 0;
     
 
     /** The cache as a main-memory hash map. */
@@ -238,11 +238,10 @@ public class PersistentHashedIndex implements Index {
                 long readChecksum = dictionaryFile.readLong();
                 int readDataSize = dictionaryFile.readInt();
             if (readDataSize != 0 ) {
-            	collisions++;
             	long newIndex = index+1;
             	if (newIndex>=TABLESIZE)
             		newIndex =0;
-            	return collisions + writeEntry( entry,  newIndex, file );
+            	return 1 + writeEntry( entry,  newIndex, file );
             }
             else{
             	writeEntryAtIndex(entry,index, file);
@@ -255,7 +254,7 @@ public class PersistentHashedIndex implements Index {
         	System.err.println("errorind: " + index);
             e.printStackTrace();
         }
-        return collisions;
+        return 0;
     }
     
     public void writeEntryAtIndex(Entry e, long index) throws IOException {
@@ -410,8 +409,8 @@ public class PersistentHashedIndex implements Index {
      *  Write the index to files.
      * @throws IOException 
      */
-    public void writeIndex() throws IOException {
-//        int collisions = 0;
+    public int writeIndex() throws IOException {
+        int collisions = 0;
     	
 //    	try {
 //    	dictionaryFile.seek( ptrFromIndex(TABLESIZE+1) ); 
@@ -449,6 +448,7 @@ public class PersistentHashedIndex implements Index {
             e.printStackTrace();
         }
         System.err.println( collisions + " collisions." );
+        return collisions;
     }
     
     
