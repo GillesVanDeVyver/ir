@@ -7,7 +7,7 @@ import java.util.LinkedList;
 
 import ir.PersistentHashedIndex.Entry;
 
-public class Merger {
+public class Merger extends Thread{
 
 	private RandomAccessFile primaryDict;
 	private RandomAccessFile primaryData;
@@ -19,6 +19,7 @@ public class Merger {
     private LinkedList<mergedEntry> entryQueue = new LinkedList<mergedEntry>();
 //    private long dataWritePtr = 0;
     private PersistentScalableHashedIndex resultHashedIndex;
+	private LinkedList<Merger> threadQueue = new LinkedList<Merger>();
     
     
     public class mergedEntry {
@@ -34,13 +35,18 @@ public class Merger {
     
 	public Merger(RandomAccessFile primaryDict, RandomAccessFile primaryData,
 			RandomAccessFile secondaryDict, RandomAccessFile secondaryData,
-			RandomAccessFile resultDict, RandomAccessFile resultData) {
+			RandomAccessFile resultDict, RandomAccessFile resultData,
+			LinkedList<RandomAccessFile>  mergeQueue,
+			LinkedList<Merger>  threadQueue) {
 		this.primaryDict = primaryDict;
 		this.primaryData = primaryData;
 		this.secondaryDict = secondaryDict;
 		this.secondaryData = secondaryData;
 
 		this.resultHashedIndex = new PersistentScalableHashedIndex(resultDict,resultData);
+		
+		this.mergeQueue = mergeQueue;
+		this.threadQueue = threadQueue;
 
 //		System.out.println("customread(resultData))" + customread(resultData));
 //		System.out.println("customread(resultDict))" + customread(resultDict));
@@ -50,7 +56,7 @@ public class Merger {
 
 
 
-	public void merge() {
+	public void run() {
 		int ind = 0;
 		boolean endOfFile1 = false;
 		boolean endOfFile2 = false;
@@ -116,6 +122,12 @@ public class Merger {
 		while(entryQueue.size()!=0) {
 			case1(ind);
 			ind++;
+		}
+		
+		mergeQueue.add(resultHashedIndex.dictionaryFile);
+		mergeQueue.add(resultHashedIndex.dataFile);
+		synchronized ( threadQueue ) {
+			threadQueue .remove(this);
 		}
 	}
 
