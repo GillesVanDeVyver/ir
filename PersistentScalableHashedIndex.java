@@ -15,543 +15,218 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+
 import ir.PersistentHashedIndex.Entry;
 
 public class PersistentScalableHashedIndex extends PersistentHashedIndex implements Index  {
 	
-//    public static final int TOKENTHRESHOLD = 500000; //med daviswiki
-    public static final int TOKENTHRESHOLD = 2500000; //full daviswiki
-
-//    public static final int TOKENTHRESHOLD = 2;
-//    public static final int TOKENTHRESHOLD = 30000;
+	
+//	public static final long TOKENTHRESH = 500000; //med daviswiki
+    public static final long TOKENTHRESH = 2500000; //full daviswiki
+//	public static final long TOKENTHRESH = 5000L;
+//	public static final long TOKENTHRESH = 2;
+	
     public static final String INTERMEDIATE_DICTIONARY_FNAME = "tempDictionary";
 
-    /** The dictionary file name */
-    public static final String INTERMEDIATE_DATA_FNAME = "tempData";
-
-    /** The terms file name */
-    public static final String INTERMEDIATE_TERMS_FNAME = "tempTerms";
-
-    /** The doc info file name */
-    public static final String INTERMEDIATE_DOCINFO_FNAME = "tempDocInfo";
+    public static final String INTERMEDIATE_DATA_FNAME = "tempData";	
     
-    int nbTokensCurrent = 0;
     
-    int intermediateCounter = 0;
-    
-
-    
-    private LinkedList<RandomAccessFile> intermediateList = new LinkedList<RandomAccessFile>();
-
-	private Integer NbDocsSeen = 0;
-
-    
-    public PersistentScalableHashedIndex() {
-//        try {
-//        	dictionaryFile = new RandomAccessFile( INDEXDIR + "/" + DICTIONARY_FNAME, "rw" );
-//            dataFile = new RandomAccessFile( INDEXDIR + "/" + DATA_FNAME, "rw" );
-//        } catch ( FileNotFoundException e ) {
-        	try {
-            dictionaryFile = new RandomAccessFile( INDEXDIR + "/" + INTERMEDIATE_DICTIONARY_FNAME +0, "rw" );
-            dataFile = new RandomAccessFile( INDEXDIR + "/" + INTERMEDIATE_DATA_FNAME + 0, "rw" );
-        	}catch ( FileNotFoundException e2 ) {}
-//        	}
+	long tokenCounter = 0L;
+	
+	int intermediateCounter = 0;
+	
+    private LinkedList<RandomAccessFile> mergeQueue = new LinkedList<RandomAccessFile>();
+	
+    public PersistentScalableHashedIndex(boolean is_indexing) {
  
-
         try {
+        	if (is_indexing) {
+	            dictionaryFile = generateDictFileName();
+	            dataFile = generateDataFileName();
+        	}
+        	else {
+        		dictionaryFile = new RandomAccessFile( INDEXDIR + "/" + DICTIONARY_FNAME, "rw" );
+                dataFile = new RandomAccessFile( INDEXDIR + "/" + DATA_FNAME, "rw" );
+        	}
             readDocInfo();
+            
         } catch ( FileNotFoundException e ) {
         	
         } catch ( IOException e ) {
             e.printStackTrace();
         }
+    }
+    
+    public PersistentScalableHashedIndex(RandomAccessFile dictFile, RandomAccessFile dFile) {
+
+        dictionaryFile = dictFile;
+        dataFile = dFile;
+
+//        try {
+//            readDocInfo();
+//        } catch ( FileNotFoundException e ) {
+//        	
+//        } catch ( IOException e ) {
+//            e.printStackTrace();
+//        }
     }
     
 
 
     public void insert( String token, int docID, int offset ) {
-//    	System.out.println("token " + token);
-		PostingsList list = index.get(token);
-		if (list==null) {
-	    	list = new PostingsList();
-		}
-		list.add(docID, offset);
-		index.put(token, list);
-    	nbTokensCurrent++;
-    	if (nbTokensCurrent>TOKENTHRESHOLD) {
-    		storeIndexIntermediate();
-
-    		
-    		
-    		
-			try {
-				// if >= 2 data files => merge
-				
-				merge(false); // todo seperate thread
-				intermediateCounter++;
-				System.out.println("intermediateCounter" + intermediateCounter);
-				String tempNameDict = INDEXDIR + "/" + INTERMEDIATE_DICTIONARY_FNAME + intermediateCounter;
-				dictionaryFile = new RandomAccessFile( tempNameDict, "rw" );
-//				System.out.println("tempName " + tempNameDict);
-				String tempNameData = INDEXDIR + "/" + INTERMEDIATE_DATA_FNAME + intermediateCounter;
-				dataFile = new RandomAccessFile( tempNameData, "rw" );
-//		        try {
-//		            readDocInfo();
-//		        } catch ( FileNotFoundException e ) {
-//		        	
-//		        } catch ( IOException e ) {
-//		            e.printStackTrace();
-//		        }
-//				System.out.println("tempName " + tempNameData);
-			} catch ( IOException e ) {
-	            e.printStackTrace();
-	        }
-    	}
-
-    }
-
-	private void storeIndexIntermediate() {
-		
-		nbTokensCurrent = 0;
-		// store index on disk
-		try {
-			dataWritePtr = 0;
+    	
+    	super.insert(token, docID, offset);
+    	tokenCounter++;
+    	
+    	if (tokenCounter==TOKENTHRESH) {
+			tokenCounter = 0;
+	        System.err.println( index.keySet().size() + " unique words" );
+	        System.err.print( "Writing index to disk..." );
 			writeIndex();
-		
-		
-		} catch (IOException e1) {
-		// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-		intermediateList.add(dictionaryFile);
-		intermediateList.add(dataFile);
-		
-		// clear index in main memory
-		index = new HashMap<String,PostingsList>();
-		try {
-			this.writeDocInfo();
-		} catch (IOException e1) {
-		// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-		// clear docNames (main memory)
-		docNames.clear();
-		
-		// clear docLengths (main memory)
-		docLengths.clear();
-		
-		// reset free pointer
-		dataWritePtr = 0;
-		
-		//recreate dictionaryFile and dataFile
-		
-	}
-
-
-
-	private void merge(boolean cleanup) {
-		if(intermediateList.size()>=4) {
-//			System.out.println("merge");
-			RandomAccessFile firstDict = intermediateList.removeFirst();
-			RandomAccessFile firstData = intermediateList.removeFirst();
-
-			RandomAccessFile secondDict = intermediateList.removeFirst();
-			RandomAccessFile secondData = intermediateList.removeFirst();
-
-			
-			try {
-				RandomAccessFile resultDict;
-				RandomAccessFile resultData;
-				if (cleanup) {
-					resultDict = new RandomAccessFile( INDEXDIR + "/" + DICTIONARY_FNAME, "rw" );
-					resultData = new RandomAccessFile( INDEXDIR + "/" + DATA_FNAME, "rw" );
-//					dictionaryFile =resultDict;
-//					dataFile = resultData;
-//					System.out.println("resultDict final" + resultDict);
-				}
-				else {
-					intermediateCounter++;
-					System.out.println("intermediateCounter merge" + intermediateCounter);
-					String tempNameDict = INDEXDIR + "/" + INTERMEDIATE_DICTIONARY_FNAME + intermediateCounter;
-					resultDict = new RandomAccessFile( tempNameDict, "rw" );
-//					System.out.println("tempName merge " + tempNameDict);
-					String tempNameData = INDEXDIR + "/" + INTERMEDIATE_DATA_FNAME + intermediateCounter;
-					resultData = new RandomAccessFile( tempNameData, "rw" );
-//					System.out.println("tempName merge " + tempNameData);
-				}
-
-				mergeContents(resultDict,firstDict,secondDict,resultData,firstData,secondData, resultData); //todo
-
-
-
-				if (!cleanup) {
-					intermediateList.add(resultDict);
-					intermediateList.add(resultData);
-				}
-				else {
-					dictionaryFile =resultDict;
-					dataFile = resultData;
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-
-		}
-	}
-	
-
-
-
-	private void mergeContents(RandomAccessFile resultDict, RandomAccessFile firstDict, RandomAccessFile secondDict,
-			RandomAccessFile resultData, RandomAccessFile firstData, RandomAccessFile secondData,
-			RandomAccessFile resultDataFile) throws IOException {
-		long resultDataPtr = 0;
-		LinkedList<Long> alreadyMerged1 = new LinkedList<Long>();
-		LinkedList<Long> alreadyMerged2 = new LinkedList<Long>();
-		for(long ind = 0; ind <= TABLESIZE; ind++) {
-//			System.out.println(ind);
-			Entry entry1 = null;
-			Entry entry2 = null;
-		
-			
-			try {
-				entry1 = readEntry(ind, firstDict);	
-			}   
-			catch (EOFException e) {
-//				System.out.println("EOFE 1");
-				entry1= null;
-			}
-	    	catch (IOException e) {
-				e.printStackTrace();
-	    	}
-			try {
-				entry2 = readEntry(ind, secondDict);
-				
-			}   
-			catch (EOFException e) {
-//				System.out.println("EOFE 2");
-				entry2= null;
-			}
-	    	catch (IOException e) {
-				e.printStackTrace();
-	    	}
-			
-//			if (entry1!= null) {
-//				System.out.println("entry1.dataSize" + entry1.dataSize);
-//				System.out.println("entry1.dataPtr" + entry1.dataPtr);
-//			}
-//			if (entry2!= null) {
-//				System.out.println("entry2.dataSize" + entry2.dataSize);
-//				System.out.println("entry2.dataPtr" + entry2.dataPtr);
-//			}
-			
-			
-//			wirteMergedEntry(entry1, entry2, resultDict, ind, resultDataPtr);
-			
-			
-			if (entry1!= null && entry2!=null && entry1.checksum == entry2.checksum) { // common case
-				
-				int resultDataSize = writeCorrespondingEntries(entry1, entry2, firstData, secondData, resultDataPtr ,
-						ind, resultDict, resultDataFile);
-				wirteMergedEntry(entry1, entry2, resultDict, ind, resultDataPtr, resultDataSize);
-				resultDataPtr+=resultDataSize;
-
-				
-			
-				
-
-			}
-			else { // this happens due to collisions
-//				System.out.println("collision handling");
-				if (entry1!=null && entry1.dataSize!= 0) {
-//					System.out.println("case1");
-					resultDataPtr+=findCorresponding(alreadyMerged1, ind, entry1,resultDataPtr, alreadyMerged2, firstData,
-							secondData, secondDict, resultDataFile, resultDict);
-				}
-				if (entry2!=null && entry2.dataSize!= 0) {
-//					System.out.println("case2");
-					resultDataPtr+=findCorresponding(alreadyMerged2, ind, entry2,resultDataPtr, alreadyMerged1, secondData,
-							firstData, firstDict, resultDataFile, resultDict);
-				}
+			docNames.clear();
+			docLengths.clear();
+			index = new HashMap<String,PostingsList>();
+			dataWritePtr = 0;
+			mergeQueue.add(dictionaryFile);
+			mergeQueue.add(dataFile);
+			if (mergeQueue.size()>=4) {
+				merge(false);
 			}
 			
-		}
-	}
-
-
-
-	private void wirteMergedEntry(Entry entry1, Entry entry2, RandomAccessFile resultDict,
-			long ind, long resultDataPtr, int resultDataSize ) {
-//		System.out.println("wirteMergedEntry called");
-		
-		
-		
-		if ((entry1!=null && entry1.dataSize!= 0) && (entry2!=null && entry2.dataSize!= 0)) {
-//			System.out.println("writing entry a");
-//			int resultDataSize = entry1.dataSize+entry2.dataSize;
-			Entry mergedEntry = new Entry(entry1.checksum,resultDataPtr,resultDataSize);
-			writeEntry(mergedEntry, ind, resultDict);
-			
-		}
-		if ((entry1==null || entry1.dataSize== 0) && (entry2!=null && entry2.dataSize!= 0)) {
-//			System.out.println("writing entry b");
-			Entry mergedEntry = new Entry(entry2.checksum,resultDataPtr,entry2.dataSize);
-			writeEntry(mergedEntry, ind, resultDict);
-		}
-		if ((entry1!=null && entry1.dataSize!= 0) && (entry2==null || entry2.dataSize== 0)) {
-//			System.out.println("writing entry c");
-			Entry mergedEntry = new Entry(entry1.checksum,resultDataPtr,entry1.dataSize);
-			writeEntry(mergedEntry, ind, resultDict);
-		}
-
-	}
-
-
-
-	private int writeCorrespondingEntries(Entry entry1, Entry entry2, RandomAccessFile firstData,
-			RandomAccessFile secondData, long resultDataPtr, long ind, RandomAccessFile resultDict,
-			RandomAccessFile resultDataFile) {
-
-		if ((entry1==null || entry1.dataSize== 0) && (entry2!= null && entry2.dataSize!= 0)) {
-			PostingsList pList = PostingsList.stringToObj(readData( entry2.dataPtr, entry2.dataSize, firstData));
-//			System.out.println("writing to merge result 1" + pList.toString());
-			return writeData( pList.toString(), resultDataPtr, resultDataFile);
-		}
-		if ((entry1!= null && entry1.dataSize!= 0) && (entry2==null || entry2.dataSize== 0)) {
-			PostingsList pList = PostingsList.stringToObj(readData( entry1.dataPtr, entry1.dataSize, secondData));
-//			System.out.println("writing to merge result 2" + pList.toString());
-			return writeData( pList.toString(), resultDataPtr, resultDataFile);
-		}
-		if ((entry1!=null && entry1.dataSize!= 0) && (entry2!=null && entry2.dataSize!= 0)) {
-			return writeMergedData(entry1,entry2, ind, resultDataPtr, firstData, secondData, resultDataFile); // actual merge of two dict entries
-		}
-		return 0; // both entries invalid
-		
-	}
-
-
-
-	private int findCorresponding(LinkedList<Long> alreadyMergedToCheck, long ind, Entry entry, long resultDataPtr,
-			LinkedList<Long> alreadyMergedToUpdate,RandomAccessFile dataFile1, RandomAccessFile dataFile2,
-			RandomAccessFile otherDict, RandomAccessFile resultDataFile, RandomAccessFile resultDict) {
-//		System.out.println("alreadyMergedToCheck" +  alreadyMergedToCheck);
-//		for (int i = 0; i < alreadyMergedToCheck.size(); i++) {
-//			if(alreadyMergedToCheck.get(i) < ind) {
-//				alreadyMergedToCheck.remove(ind);
-//			}
-//		}
-		if (!alreadyMergedToCheck.contains(ind)) {
-			Entry entryMatch = readEntryAndCheck(ind+1, entry.checksum,otherDict );
-			if (entryMatch!= null) {
-				alreadyMergedToUpdate.add(entryMatch.index);
-//				System.out.println("entryMatch.indeyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" +  entryMatch.index);
-//				System.out.println("entry" +  entry);
-//				System.out.println("entryMatchx" +  entryMatch);
-
-//				wirteMergedEntry(entry1, entry2, resultDict, ind, resultDataPtr);
-//				resultDataPtr+= writeCorrespondingEntries(entry1, entry2, firstData, secondData, resultDataPtr ,
-//						ind, resultDict, resultDataFile);
-				
-				
-				int resultDataSize = writeCorrespondingEntries(entry, entryMatch, dataFile1, dataFile2,
-						resultDataPtr , ind, resultDict, resultDataFile);
-				wirteMergedEntry(entry, entryMatch, resultDict, ind, resultDataPtr, resultDataSize);
-				return resultDataSize;
-			}
-			else {
-				PostingsList pList = PostingsList.stringToObj(readData( entry.dataPtr, entry.dataSize, dataFile1));
-//				System.out.println("writing to merge result 3" + pList.toString());
-				int resultDataSize = writeData( pList.toString(), resultDataPtr, resultDataFile);
-				wirteMergedEntry(entry, null, resultDict, ind, resultDataPtr, resultDataSize);
-				return resultDataSize;
-			}
-//			resultDataPtr+= writeMergedEntry(entry,entryMatch, ind, resultDataPtr, dataFile1, dataFile2);
-			
-		}
-		else {
-//			System.out.println("skip occured sssssssssssssssssssssssssssssssssssssssssssssssssss");
-			alreadyMergedToCheck.remove(ind);
-			return 0;
-		}
-
-		
-	}
-
-
-
-
-
-
-
-	private int writeMergedData(Entry entry1, Entry entry2, long ind, long dataPtr, RandomAccessFile firstData,
-			RandomAccessFile secondData, RandomAccessFile resultDataFile ) {
-		try {
-//		int resultDataSize = entry1.dataSize+entry2.dataSize;
-		
-		
-//		Entry mergedEntry = new Entry(entry1.checksum,dataPtr,resultDataSize);
-//		writeEntry(mergedEntry, ind, resultDict);
-//		System.out.println("readData( entry1.dataPtr, entry1.dataSize)" + readData( entry1.dataPtr, entry1.dataSize));
-//		System.out.println("readData( entry2.dataPtr, entry2.dataSize)" + readData( entry2.dataPtr, entry2.dataSize));
-//		System.out.println("firstData" + firstData);
-//		System.out.println("secondData" + secondData);
-//		System.out.println("customread(firstData)" + customread(firstData));
-//		System.out.println("customread(secondData)" + customread(secondData));
-
-//		System.out.println("entry1.dataPtr" + entry1.dataPtr);
-//		System.out.println("entry2.dataPtr" + entry2.dataPtr);
-//		System.out.println("entry1.dataSize" + entry1.dataSize);
-//		System.out.println("entry2.dataSize" + entry2.dataSize);
-//		System.out.println("entry1.checksum" + entry1.checksum);
-//		System.out.println("entry2.checksum" + entry2.checksum);
-
-		PostingsList pList1 = PostingsList.stringToObj(readData( entry1.dataPtr, entry1.dataSize, firstData));
-		
-		PostingsList pList2 = PostingsList.stringToObj(readData( entry2.dataPtr, entry2.dataSize, secondData));
-//		System.out.println("pList1 before" + pList1);
-//		System.out.println("pList2 before" + pList2);
-		PostingsList pList3 = mergePlists(pList1, pList2);
-		
-//		System.out.println("pList1 " + pList1);
-//		System.out.println("pList2 " + pList2);
-//		System.out.println("pList3 " + pList3);
-//
-//		System.out.println("readData( entry1.dataPtr, entry1.dataSize)" + readData( entry1.dataPtr, entry1.dataSize, firstData));
-//		System.out.println("readData( entry2.dataPtr, entry2.dataSize)" + readData( entry2.dataPtr, entry2.dataSize, secondData));
-//		System.out.println("firstData" + firstData);
-//		System.out.println("secondData" + secondData);
-//		System.out.println("customread(firstData)" + customread(firstData));
-//		System.out.println("customread(secondData)" + customread(secondData));
-//		System.out.println("entry1.dataPtr" + entry1.dataPtr);
-//		System.out.println("entry2.dataPtr" + entry2.dataPtr);
-//		System.out.println("entry1.dataSize" + entry1.dataSize);
-//		System.out.println("entry2.dataSize" + entry2.dataSize);
-//		System.out.println("entry1.checksum" + entry1.checksum);
-//		System.out.println("entry2.checksum" + entry2.checksum);
-
-//
-//		System.out.println("readData( entry2.dataPtr, entry2.dataSize, secondData)" + readData( entry2.dataPtr, entry2.dataSize, secondData));
-//		System.out.println("readData( entry1.dataPtr, entry1.dataSize, secondData)" + readData( entry1.dataPtr, entry1.dataSize, firstData));
-//
-//		System.out.println("writing to merge result 4 mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm" + pList3.toString());
-		
-		return writeData( pList3.toString(), dataPtr,resultDataFile);
-		}
-		catch (Exception e) {
-			System.out.println("readData( entry1.dataPtr, entry1.dataSize)" + readData( entry1.dataPtr, entry1.dataSize, firstData));
-			System.out.println("readData( entry2.dataPtr, entry2.dataSize)" + readData( entry2.dataPtr, entry2.dataSize, secondData));
-			System.out.println("firstData" + firstData);
-			System.out.println("secondData" + secondData);
-			System.out.println("customread(firstData)" + customread(firstData));
-			System.out.println("customread(secondData)" + customread(secondData));
-			System.out.println("entry1.dataPtr" + entry1.dataPtr);
-			System.out.println("entry2.dataPtr" + entry2.dataPtr);
-			System.out.println("entry1.dataSize" + entry1.dataSize);
-			System.out.println("entry2.dataSize" + entry2.dataSize);
-			System.out.println("entry1.checksum" + entry1.checksum);
-			System.out.println("entry2.checksum" + entry2.checksum);
-			throw e;
-		}
-	}
-	
-    String customread( RandomAccessFile file) {
-//    	System.out.println("read");
-        try {
-        	file.seek( 0 );
-            byte[] data = new byte[9];
-            file.readFully( data );
-            return new String(data);
-        } catch ( IOException e ) {
-            e.printStackTrace();
-            return null;
-        }
+			intermediateCounter++;
+			dictionaryFile = generateDictFileName();
+			dataFile = generateDataFileName();
+    	}
     }
+    
+
+    
 
 
 
-	private PostingsList mergePlists(PostingsList pList1, PostingsList pList2) {
-		PostingsList result = PostingsList.merge(pList1,pList2);
-//		System.out.println("merging plists " + pList1 + " and " + pList2 + " to " + result);
-		
+	private RandomAccessFile generateDictFileName() {
+		RandomAccessFile result = null;
+		try {
+			System.out.println("intermediateCounter" + intermediateCounter);
+			String tempNameDict = INDEXDIR + "/" + INTERMEDIATE_DICTIONARY_FNAME + intermediateCounter;
+			result = new RandomAccessFile( tempNameDict, "rw" );
+//			System.out.println("tempNameDict " + tempNameDict + result);
+
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		return result;
+	}
+	
+	private RandomAccessFile generateDataFileName() {
+		RandomAccessFile result = null;
+		try {
+			String tempNameData = INDEXDIR + "/" + INTERMEDIATE_DATA_FNAME + intermediateCounter;
+			result = new RandomAccessFile( tempNameData, "rw" );
+//			System.out.println("tempNameData " + tempNameData + result);
+
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
 		return result;
 	}
 
+	private void merge(boolean cleanup) {
+		
+		RandomAccessFile firstDict = mergeQueue.removeFirst();
+		RandomAccessFile firstData = mergeQueue.removeFirst();
+		RandomAccessFile secondDict = mergeQueue.removeFirst();
+		RandomAccessFile secondData = mergeQueue.removeFirst();
+		intermediateCounter++;
+		RandomAccessFile resultDict= null;
+		RandomAccessFile resultData = null;
+		if (cleanup){
+			try {
+				resultDict = new RandomAccessFile( INDEXDIR + "/" + DICTIONARY_FNAME, "rw" );
+				resultData = new RandomAccessFile( INDEXDIR + "/" + DATA_FNAME, "rw" );
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			}
+			
+		}
+		else {
+			resultDict = generateDictFileName();
+			resultData = generateDataFileName();		
+		}
 
 
-	public void cleanup() {
-		System.out.println("cleanup");
+		Merger merger = new Merger(firstDict,firstData,secondDict,secondData,
+				resultDict, resultData);
+		merger.merge();
+		mergeQueue.add(resultDict);
+		mergeQueue.add(resultData);
+	}
+
+    public void cleanup() {
         System.err.println( index.keySet().size() + " unique words" );
         System.err.print( "Writing index to disk..." );
-        storeIndexIntermediate();
-//        intermediateList.add(dictionaryFile);
-//        intermediateList.add(dataFile);
-        merge(true);
-        
+		writeIndex();
+		mergeQueue.add(dictionaryFile);
+		mergeQueue.add(dataFile);
+		if (mergeQueue.size()>=4) {
+			merge(true);
+		}
+		
+		dictionaryFile = mergeQueue.removeFirst();
+		dataFile = mergeQueue.removeFirst();
+		
         try {
             readDocInfo();
+            deleteDocInfoFile();
+            writeDocInfo();
         } catch ( FileNotFoundException e ) {
         	
         } catch ( IOException e ) {
             e.printStackTrace();
         }
-        // wait for threads to finish
+        
+
         System.err.println( "done!" );
     }
-	
-    protected void readDocInfo() throws IOException {
-        File file = new File( INDEXDIR + "/docInfo" );
-        FileReader freader = new FileReader(file);
-        try (BufferedReader br = new BufferedReader(freader)) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                String[] data = line.split(";");
-                docNames.put(new Integer(data[0]), data[1]);
-                docLengths.put(new Integer(data[0]), new Integer(data[2]));
-            }
-        }
-        freader.close();
+    
+    void deleteDocInfoFile() {
+    	File file = new File( INDEXDIR + "/docInfo" );
+    	file.delete();
     }
     
-    
-    public void writeDocInfo() throws IOException {
-        FileOutputStream fout = new FileOutputStream( INDEXDIR + "/docInfo", true );
-        int counter = 0;
-        String lastLine = readlastDocInfo();
-        String lastDocName = "";
-//        int lastDocId =0;
-        if (lastLine!= null) {
-            String[] lastLineData = lastLine.split(";");
-//            lastDocId =new Integer(lastLineData[0]);
-            lastDocName = new String(lastLineData[1]);
-        }
+    public Entry readEntryAndDel (long index ,long checksum, RandomAccessFile file) {  
 
-//        System.out.println("lastDocNameaaaa " + lastDocName);
-        for (Map.Entry<Integer,String> entry : docNames.entrySet()) {
-            Integer key = entry.getKey();
-            String DocName = entry.getValue();
-//            System.out.println("read name " +entry.getValue() );
-            if (!DocName.equals(lastDocName)) {
-//            	System.out.println("new name");
-	            String docInfoEntry = (key)+  ";" + entry.getValue() + ";" + docLengths.get(key) + "\n";
-	            fout.write( docInfoEntry.getBytes());
-	            counter++;
+        try {
+        	file.seek( ptrFromIndex(index) );
+            long readDataPtr = file.readLong();
+            long readChecksum = file.readLong();
+            int readDataSize = file.readInt();
+            if (readDataSize == 0) {
+            	return null;
             }
-//            else {
-//            	System.out.println("old name");
-//            }
+            if (readChecksum!=checksum) { //checksum didn't match
+            	long newIndex = index+1;
+            	return readEntryAndCheck(newIndex, checksum);
+            }
+            else {
+            	file.seek( ptrFromIndex(index) );
+                file.writeLong(0L);
+                file.writeLong(0L);
+                file.writeInt(0);
+            	return new Entry(checksum,readDataPtr,readDataSize, index);
+            }
+        } 
+        catch ( EOFException e ) {
+        	System.out.println("EOFException");
+            return null;
+        }catch ( IOException e ) {
+            e.printStackTrace();
+            return null;
         }
-        NbDocsSeen+= counter;
-        fout.close();
     }
     
-    protected String readlastDocInfo() throws IOException {
-        File file = new File( INDEXDIR + "/docInfo" );
-        
-        ReversedLinesFileReader invertedFreader = new ReversedLinesFileReader( file, 1000, Charset.defaultCharset() );
-        String Lastline = invertedFreader.readLine();
-	    invertedFreader.close();
-       	return Lastline;
-    }
+
+
 }
     
 

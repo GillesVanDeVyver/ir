@@ -64,6 +64,7 @@ public class PostingsList {
     } 
     
     public static PostingsList stringToObj(String representation) {
+    	try {
     	PostingsList result = new PostingsList();
     	String delims = "[;]";
     	String[] eStrings = representation.split(delims);
@@ -71,7 +72,13 @@ public class PostingsList {
     		
     		result.append(PostingsEntry.stringToObj(eString));
     	}
-		return result;
+    	return result;
+    	}
+		catch (Exception e) {
+			System.out.println("representation list" + representation);
+			throw e;
+		}
+		
     }
 
 	public static PostingsList merge(PostingsList pList1, PostingsList pList2) {

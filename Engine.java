@@ -18,8 +18,8 @@ public class Engine {
     /** The inverted index. */
     //Index index = new HashedIndex();
 //    Index index = new PersistentHashedIndex();
-    Index index = new PersistentScalableHashedIndex();
-    
+//    Index index = new PersistentScalableHashedIndex();
+	Index index;
 
     /** The indexer creating the search index. */
     Indexer indexer;
@@ -64,6 +64,10 @@ public class Engine {
      */
     public Engine( String[] args ) {
         decodeArgs( args );
+        Index index = new PersistentScalableHashedIndex(is_indexing);
+        //Index index = new HashedIndex();
+//      Index index = new PersistentHashedIndex();
+//      Index index = new PersistentScalableHashedIndex();
         indexer = new Indexer( index, kgIndex, patterns_file );
         searcher = new Searcher( index, kgIndex );
         gui = new SearchGUI( this );

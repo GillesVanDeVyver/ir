@@ -48,11 +48,13 @@ public class PersistentHashedIndex implements Index {
     /** The dictionary hash table on disk can fit this many entries. */
 //    public static final long TABLESIZE = 3499999L;
 //    public static final long TABLESIZE = 17L;
-//    public static final long TABLESIZE = 599999L;
     public static final long TABLESIZE = 611953L;
     public static final int DIRENTRYSIZE = 20;
-
-
+    public static final int HASHPRIME = 137;
+    public static final int CHECKSUMPRIME1 = 97;
+    public static final int CHECKSUMPRIME2 = 999979;
+    
+    
     /** The dictionary hash table is stored in this file. */
     RandomAccessFile dictionaryFile;
 
@@ -117,9 +119,9 @@ public class PersistentHashedIndex implements Index {
 	public long hash(String word) {
 		byte[] wordBytes = word.getBytes();
 		long hashValue = 0;
-		int p = 31;
+;
     	for (int i =0; i <wordBytes.length;i++) {
-    		hashValue+= p*hashValue + wordBytes[i]; // String hashing using Polynomial rolling hash function  https://www.geeksforgeeks.org/string-hashing-using-polynomial-rolling-hash-function/
+    		hashValue+= HASHPRIME*hashValue + wordBytes[i]; // String hashing using Polynomial rolling hash function  https://www.geeksforgeeks.org/string-hashing-using-polynomial-rolling-hash-function/
     	}
 		return Math.abs(hashValue) % TABLESIZE;
 	}
@@ -127,11 +129,12 @@ public class PersistentHashedIndex implements Index {
 	
 	public long checksum(String word) {
 		byte[] wordBytes = word.getBytes();
-    	long checksum = 0;
-		for (int i =0; i <wordBytes.length;i++) {
-			checksum+= wordBytes[i];
-		}
-		return checksum;
+		long checksum = 0;
+;
+    	for (int i =0; i <wordBytes.length;i++) {
+    		checksum+= CHECKSUMPRIME1*checksum + wordBytes[i]; // String hashing using Polynomial rolling hash function  https://www.geeksforgeeks.org/string-hashing-using-polynomial-rolling-hash-function/
+    	}
+		return Math.abs(checksum) % CHECKSUMPRIME2;
 	}
 	
 
@@ -159,6 +162,8 @@ public class PersistentHashedIndex implements Index {
             e.printStackTrace();
         }
     }
+    
+
 
     /**
      *  Writes data to the data file at a specified place.
@@ -169,7 +174,7 @@ public class PersistentHashedIndex implements Index {
     	return writeData(dataString, ptr, dataFile);
     }
     
-    int writeData( String dataString, long ptr, RandomAccessFile file) {
+    static int writeData( String dataString, long ptr, RandomAccessFile file) {
         try {
         	file.seek( ptr ); 
             byte[] data = dataString.getBytes();
@@ -185,7 +190,7 @@ public class PersistentHashedIndex implements Index {
     /**
      *  Reads data from the given file
      */ 
-    String readData( long ptr, int size, RandomAccessFile file) {
+    static String readData( long ptr, int size, RandomAccessFile file) {
 //    	System.out.println("read");
         try {
         	file.seek( ptr );
@@ -235,9 +240,14 @@ public class PersistentHashedIndex implements Index {
             try {
             	file.seek( ptrFromIndex(index) ); 
                 long readDataPtr = dictionaryFile.readLong();
+//                if (readDataPtr != 0 )
+//                	System.err.println("eeeeeeeeeeeeeeeeeee8");
                 long readChecksum = dictionaryFile.readLong();
+//                if (readChecksum != 0 )
+//                	System.err.println("eeeeeeeeeeeeeeeeeee9");
                 int readDataSize = dictionaryFile.readInt();
             if (readDataSize != 0 ) {
+//            	System.err.println("eeeeeeeeeeeeeeeeeee10");
             	long newIndex = index+1;
             	return 1 + writeEntry( entry,  newIndex, file );
             }
@@ -273,21 +283,21 @@ public class PersistentHashedIndex implements Index {
      *  @param index The index in the dictionary file where to start reading.
      * @throws IOException 
      */
-    Entry readEntry( long index) throws IOException {  
-		dictionaryFile.seek( ptrFromIndex(index) );
-        long readDataPtr = dictionaryFile.readLong();
-        long readChecksum = dictionaryFile.readLong();
-        int readDataSize = dictionaryFile.readInt();
-        return new Entry(readChecksum,readDataPtr,readDataSize);
-    }
-    
-    Entry readEntry( long index, RandomAccessFile file) throws IOException {  
-    	file.seek( ptrFromIndex(index) );
-        long readDataPtr = file.readLong();
-        long readChecksum = file.readLong();
-        int readDataSize = file.readInt();
-        return new Entry(readChecksum,readDataPtr,readDataSize);
-    }
+//    Entry readEntry( long index) throws IOException {  
+//		dictionaryFile.seek( ptrFromIndex(index) );
+//        long readDataPtr = dictionaryFile.readLong();
+//        long readChecksum = dictionaryFile.readLong();
+//        int readDataSize = dictionaryFile.readInt();
+//        return new Entry(readChecksum,readDataPtr,readDataSize);
+//    }
+//    
+//    Entry readEntry( long index, RandomAccessFile file) throws IOException {  
+//    	file.seek( ptrFromIndex(index) );
+//        long readDataPtr = file.readLong();
+//        long readChecksum = file.readLong();
+//        int readDataSize = file.readInt();
+//        return new Entry(readChecksum,readDataPtr,readDataSize);
+//    }
 
     /**
      *  Reads an entry from the dictionary file.
@@ -322,22 +332,13 @@ public class PersistentHashedIndex implements Index {
     }
     
     Entry readEntryAndCheck( long index ,long checksum, RandomAccessFile file) {  
-//    	System.out.println("index " + index);
-//    	System.out.println("file " + file);
+
         try {
-//        	System.out.println("ok1 ");
         	file.seek( ptrFromIndex(index) );
-//        	System.out.println("ok2 ");
             long readDataPtr = file.readLong();
-//            System.out.println("ok3 ");
-
-
-            	
             long readChecksum = file.readLong();
-//            System.out.println("readChecksum " + readChecksum);
             int readDataSize = file.readInt();
             if (readDataSize == 0) {
-//            	System.out.println("readDataPtr == 0 " );
             	return null;
             }
             if (readChecksum!=checksum) { //checksum didn't match
@@ -357,7 +358,7 @@ public class PersistentHashedIndex implements Index {
     }
     
     
-    public long ptrFromIndex(long index) {
+    public static long ptrFromIndex(long index) {
     	return index*DIRENTRYSIZE;
     }
 
@@ -370,7 +371,7 @@ public class PersistentHashedIndex implements Index {
      * @throws IOException  { exception_description }
      */
     public void writeDocInfo() throws IOException {
-        FileOutputStream fout = new FileOutputStream( INDEXDIR + "/docInfo", true );
+        FileOutputStream fout = new FileOutputStream( INDEXDIR + "/docInfo" , true);
         for (Map.Entry<Integer,String> entry : docNames.entrySet()) {
             Integer key = entry.getKey();
             String docInfoEntry = key + ";" + entry.getValue()+ ";" + docLengths.get(key) + "\n";
@@ -405,7 +406,7 @@ public class PersistentHashedIndex implements Index {
      *  Write the index to files.
      * @throws IOException 
      */
-    public int writeIndex() throws IOException {
+    public int writeIndex()  {
         int collisions = 0;
     	
 //    	try {
@@ -459,18 +460,25 @@ public class PersistentHashedIndex implements Index {
      *  if the term is not in the index.
      */
     public PostingsList getPostings( String token ) {
-//    	System.out.println("token " + token);
+//    	System.out.println("customread(dataFile)" + customread(dataFile));
 		 long dirIndex = hash(token);
-//		 System.out.println("dirIndex " + dirIndex);
-//		 System.out.println("checksum(token) " + checksum(token));
 		 Entry dirEntry = readEntryAndCheck( dirIndex, checksum(token));
 		 String dataString = readData( dirEntry.dataPtr, dirEntry.dataSize);
-//		 System.out.println("dataString " + dataString);
-
-//		 System.out.println("getPostingsResult " + PostingsList.stringToObj(dataString));
 		 return PostingsList.stringToObj(dataString);
     }
    
+    String customread( RandomAccessFile file) {
+//    	System.out.println("read");
+        try {
+        	file.seek( 0 );
+            byte[] data = new byte[9];
+            file.readFully( data );
+            return new String(data);
+        } catch ( IOException e ) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 
     /**
      *  Inserts this token in the main-memory hashtable.
@@ -491,12 +499,8 @@ public class PersistentHashedIndex implements Index {
     public void cleanup() {
         System.err.println( index.keySet().size() + " unique words" );
         System.err.print( "Writing index to disk..." );
-        try {
 			writeIndex();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+
         System.err.println( "done!" );
     }
 }
