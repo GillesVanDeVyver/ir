@@ -21,10 +21,7 @@ import ir.PersistentHashedIndex.Entry;
 public class PersistentScalableHashedIndex extends PersistentHashedIndex implements Index  {
 	
 	
-//	public static final long TOKENTHRESH = 500000; //med daviswiki
-    public static final long TOKENTHRESH = 2500000; //full daviswiki
-//	public static final long TOKENTHRESH = 25000L;
-//	public static final long TOKENTHRESH = 2;
+    public static final long TOKENTHRESH = 2500000; //daviswiki
 //	public static final long TOKENTHRESH = 10000000; //guardian
 
 	
@@ -64,21 +61,15 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
     }
     
     public PersistentScalableHashedIndex(RandomAccessFile dictFile, RandomAccessFile dFile) {
-
         dictionaryFile = dictFile;
         dataFile = dFile;
-
-//        try {
-//            readDocInfo();
-//        } catch ( FileNotFoundException e ) {
-//        	
-//        } catch ( IOException e ) {
-//            e.printStackTrace();
-//        }
     }
     
 
-
+    /**
+     *  Inserts this token in the main-memory hashtable.
+     *  If the token threshold is reached, the data is written to an intermediate file.
+     */
     public void insert( String token, int docID, int offset ) {
     	
     	super.insert(token, docID, offset);
@@ -97,7 +88,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
 				mergeQueue.add(dictionaryFile);
 				mergeQueue.add(dataFile);
 			}
-			if (mergeQueue.size()>=4) {
+			while (mergeQueue.size()>=4) {
 				merge(false);
 			}
 			
@@ -106,39 +97,45 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
 			dataFile = generateDataFileName();
     	}
     }
-    
 
-    
-
-
-
+    /**
+     *  Generates a new intermediate file for a dictionary.
+     *  
+     *  @return The variable pointing to the RandomAccesFile
+     */
 	private RandomAccessFile generateDictFileName() {
 		RandomAccessFile result = null;
 		try {
-			System.out.println("intermediateCounter" + intermediateCounter);
 			String tempNameDict = INDEXDIR + "/" + INTERMEDIATE_DICTIONARY_FNAME + intermediateCounter;
 			result = new RandomAccessFile( tempNameDict, "rw" );
-//			System.out.println("tempNameDict " + tempNameDict + result);
-
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
 		return result;
 	}
 	
+    /**
+     *  Generates a new intermediate file for data.
+     *  
+     *  @return The variable pointing to the RandomAccesFile
+     */
 	private RandomAccessFile generateDataFileName() {
 		RandomAccessFile result = null;
 		try {
 			String tempNameData = INDEXDIR + "/" + INTERMEDIATE_DATA_FNAME + intermediateCounter;
 			result = new RandomAccessFile( tempNameData, "rw" );
-//			System.out.println("tempNameData " + tempNameData + result);
-
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
 		return result;
 	}
 
+    /**
+     *  Starts a thread to merge the two first intermediates in the mergeQueue.
+     *  If cleanup is True, the result will be stored in the final data and dictionary files.
+     *  
+     *  @param cleanup Boolean stating whether this is the last merge
+     */
 	private void merge(boolean cleanup) {
 		RandomAccessFile firstDict;
 		RandomAccessFile secondData;
@@ -160,32 +157,26 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
 				} catch (FileNotFoundException e) {
 					e.printStackTrace();
 				}
-				
+				System.err.println("last merge");
 			}
 			else {
 				resultDict = generateDictFileName();
 				resultData = generateDataFileName();		
 			}
-	
-	
-			
+
 			Merger merger = new Merger(firstDict,firstData,secondDict,secondData,
 					resultDict, resultData,mergeQueue,threadQueue );
 			synchronized ( threadQueue ) {
 				threadQueue.add(merger);
 			}
-			System.out.println("threadQueue" + threadQueue);
-			merger.start();
 			
-//			try {
-//				merger.join();
-//			} catch (InterruptedException e) {
-//				e.printStackTrace();
-//			}
-
-
+			merger.start();
 	}
 
+    /**
+     *  Write index to file after indexing is done.
+     *  Wait for all merging threads to finish.
+     */
     public void cleanup() {
         System.err.println( index.keySet().size() + " unique words" );
         System.err.print( "Writing index to disk..." );
@@ -195,14 +186,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
 			mergeQueue.add(dataFile);
 		}
 		waitForThreads();
-		// while threadqueue.size>=1 threadqueu.removefirst join if mergeque>4 new thread
-//		while(mergeQueue.size()>4) {
-//			merge(false);
-//		}
-//		if(mergeQueue.size()==4) {
-//			merge(true);
-//		}
-		
 		dictionaryFile = mergeQueue.removeFirst();
 		dataFile = mergeQueue.removeFirst();
 		
@@ -220,8 +203,10 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
         System.err.println( "done!" );
     }
     
+    /**
+     *  Wait for all merging threads to finish.
+     */
     private void waitForThreads() {
-    	
     	while (threadQueue.size()>=1) {
     		Thread firstThread;
     		synchronized ( threadQueue ) {
@@ -232,7 +217,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-    		System.out.println("mergeQueue.size()"+ mergeQueue.size());
     		synchronized ( mergeQueue ) {
 	    		while(mergeQueue.size()>4) {
 	    			merge(false);
@@ -241,27 +225,41 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
     	}
     	if(mergeQueue.size()==4) {
 			merge(true);
+
 		}
-    	Merger lastThread;
-		synchronized ( threadQueue ) {
-    		lastThread = threadQueue.removeFirst();
-		}
-    	try {
-			lastThread.join();
-		} catch (InterruptedException e) {
+    	Merger lastThread = null;
+    	synchronized ( threadQueue ) {
+	    	if (threadQueue.size()>0) {
+	    		lastThread = threadQueue.removeFirst();
+			}
+    	}
+	    	try {
+	    		if (lastThread!=null)
+				lastThread.join();
+			} 
+    	catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-    		
-		
 	}
 
+    /**
+     *  Delete the docInfo file
+     */
 	void deleteDocInfoFile() {
     	File file = new File( INDEXDIR + "/docInfo" );
     	file.delete();
     }
     
+    /**
+     *  Reads an entry from the dictionary file and checks if the checksum matches.
+     *  Deletes the found entry.
+     *
+     *  @param index The index in the dictionary file where to start reading.
+     *  @param checksum The checksum to check
+     *  
+     *  @return The found entry
+     */
     public Entry readEntryAndDel (long index ,long checksum, RandomAccessFile file) {  
-
         try {
         	file.seek( ptrFromIndex(index) );
             long readDataPtr = file.readLong();
@@ -279,11 +277,10 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
                 file.writeLong(0L);
                 file.writeLong(0L);
                 file.writeInt(0);
-            	return new Entry(checksum,readDataPtr,readDataSize, index);
+            	return new Entry(checksum,readDataPtr,readDataSize);
             }
         } 
         catch ( EOFException e ) {
-        	System.out.println("EOFException");
             return null;
         }catch ( IOException e ) {
             e.printStackTrace();
@@ -291,8 +288,6 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
         }
     }
     
-
-
 }
     
 
