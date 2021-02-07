@@ -22,24 +22,24 @@ public class PostingsList {
 
     /** Number of postings in this list. */
     public int size() {
-    	return list.size();
+    	return getList().size();
     }
 
     /** Returns the ith posting. */
     public PostingsEntry get( int i ) {
-    	return list.get( i );
+    	return getList().get( i );
     }
     
     public void append( PostingsEntry e ) {
-    if (list.size()!=0 && list.get(list.size()-1).docID==e.docID)
+    if (getList().size()!=0 && getList().get(getList().size()-1).docID==e.docID)
     	return;
-    list.add(e);
+    getList().add(e);
     }
     
     public void add( int docID , int offset) {
     	
-		if (list.size()!=0){
-			PostingsEntry lastEntry = list.get(list.size()-1);
+		if (getList().size()!=0){
+			PostingsEntry lastEntry = getList().get(getList().size()-1);
 			if (lastEntry.docID==docID) {
 				lastEntry.addToOffsetList(offset);
 				return;
@@ -48,17 +48,17 @@ public class PostingsList {
 			PostingsEntry e = new PostingsEntry();
 			e.docID=docID;
 			e.addToOffsetList(offset);
-			list.add(e);
+			getList().add(e);
     }
     
     
     public void set( PostingsEntry e , int offset) {
-    	list.set(offset, e);
+    	getList().set(offset, e);
     }
     
     public String toString() { 
     	String representation="";
-    	for (PostingsEntry e : list)
+    	for (PostingsEntry e : getList())
     		representation = representation+e.toString()+";";
 		return representation;
     } 
@@ -84,27 +84,48 @@ public class PostingsList {
 	public static PostingsList merge(PostingsList pList1, PostingsList pList2) {
 		PostingsEntry lastEntry1 = pList1.get(pList1.size()-1);
 		PostingsEntry firstEntry2 = pList2.get(0);
-		boolean skipFirst = false;
-		if (lastEntry1.docID==firstEntry2.docID) {
-			lastEntry1.offsetList = PostingsEntry.mergeOffsetLists(lastEntry1.offsetList, firstEntry2.offsetList);
-			skipFirst = true;
-		}
 		PostingsList result = new PostingsList();
-		result.list =  mergeLists(pList1, pList2, skipFirst);
+		result.setList(mergeLists(pList1, pList2));
 		return result;
 	}
 
-	private static LinkedList<PostingsEntry> mergeLists(PostingsList pList1, PostingsList pList2, boolean skipFirst) {
-		LinkedList<PostingsEntry>  pList2ToMerge = (LinkedList<PostingsEntry>) pList2.list.clone();
-		if (skipFirst) {
-			pList2ToMerge.remove();
-		}
+	private static LinkedList<PostingsEntry> mergeLists(PostingsList pList1, PostingsList pList2) {
+
 		LinkedList<PostingsEntry> newList = new LinkedList<PostingsEntry>();
-    	newList.addAll(pList1.list);
-    	newList.addAll(pList2ToMerge);
+    	newList.addAll(pList1.getList());
+    	newList.addAll(pList2.getList());
+    	newList.sort(new DocIdSorter());
+    	mergeDuplicates(newList);
     	return newList;
 		
 	} 
+	
+	private static void mergeDuplicates(LinkedList<PostingsEntry> list) {
+		int i = 0;
+		while (i<list.size()-1) {
+			PostingsEntry e1 = list.get(i);
+			PostingsEntry e2 = list.get(i+1);
+			if (e1.docID==e2.docID) {
+				e1.offsetList = PostingsEntry.mergeOffsetLists(e1.offsetList, e2.offsetList);
+				list.remove(i+1);
+			}
+			i++;
+		}
+
+		
+	}
+
+	public void sortList() {
+		this.getList().sort(new DocIdSorter());
+	}
+
+	public LinkedList<PostingsEntry> getList() {
+		return list;
+	}
+
+	public void setList(LinkedList<PostingsEntry> list) {
+		this.list = list;
+	}
 	
 
     // 

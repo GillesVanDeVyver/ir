@@ -137,7 +137,7 @@ public class Tokenizer {
             }
         }
         catch ( IOException e ) {
-            System.err.println( "Warning: IOException reading the regular expressions from file" );
+//            System.err.println( "Warning: IOException reading the regular expressions from file" );
         }
         catch ( PatternSyntaxException e ) {
             System.err.println( "ERROR: Malformed regular expression: " + line );

@@ -68,7 +68,7 @@ public class Merger extends Thread{
 			        readDataSize1 = primaryDict.readInt();
 				} catch (EOFException e) {
 					endOfFile1 = true;
-					readDataSize1 = 0;					
+					readDataSize1 = 0;	
 				}
 				catch (IOException e) {
 					e.printStackTrace();
@@ -157,7 +157,7 @@ public class Merger extends Thread{
 			dictFileToLook = primaryDict;
 			dataFileToLook = primaryData;
 		}
-		mergedEntry merged = findAndDelCorresponding(ind+1,readChecksum,readDataPtr,readDataSize, dataFileThis, dataFileToLook, dictFileToLook);
+		mergedEntry merged = findAndDelCorresponding(ind,readChecksum,readDataPtr,readDataSize, dataFileThis, dataFileToLook, dictFileToLook);
 		writeEntryAndData(merged, ind);
 	}
 
@@ -199,7 +199,7 @@ public class Merger extends Thread{
 	private void case4(int readDataSize1, long readChecksum1, long readDataPtr1, 
 			int readDataSize2, long readChecksum2, long readDataPtr2, long ind) {
 		case2(readDataSize1,readChecksum1,readDataPtr1,ind, true);
-		mergedEntry merged = findAndDelCorresponding(ind+1,readChecksum2,readDataPtr2,readDataSize2,secondaryData, primaryData, primaryDict);
+		mergedEntry merged = findAndDelCorresponding(ind,readChecksum2,readDataPtr2,readDataSize2,secondaryData, primaryData, primaryDict);
 		entryQueue.add(merged);
 	}
 	
@@ -220,7 +220,7 @@ public class Merger extends Thread{
 	private mergedEntry findAndDelCorresponding(long ind, long readChecksum, long readDataPtr, int readDataSize,
 			RandomAccessFile dataFileThis, RandomAccessFile dataFileToLook, RandomAccessFile dictFileToLook) {
 		mergedEntry result;
-		Entry entryMatch = resultHashedIndex.readEntryAndDel(ind, readChecksum,dictFileToLook);
+		Entry entryMatch = resultHashedIndex.readEntryAndDel(ind, readChecksum,dictFileToLook,10);
 		if (entryMatch!=null) {
 			result = mergeEntries(readDataSize,readDataPtr,entryMatch.dataSize,entryMatch.dataPtr,readChecksum,
 					dataFileThis, dataFileToLook);

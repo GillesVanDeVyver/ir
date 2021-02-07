@@ -8,7 +8,9 @@
 package ir;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map.Entry;
 
 import ir.Query.QueryTerm;
 
@@ -35,6 +37,87 @@ public class Searcher {
      */
     public PostingsList search( Query query, QueryType queryType, RankingType rankingType ) { 
     	ArrayList<QueryTerm> term = query.queryterm;
+		if (queryType==queryType.INTERSECTION_QUERY || queryType==queryType.PHRASE_QUERY) {
+			return unRankedsearch(term, query,queryType );
+		}
+		else {
+			return rankedsearch(term, query,queryType );
+		}
+
+    }
+    
+
+	private PostingsList rankedsearch(ArrayList<QueryTerm> term, Query query, QueryType queryType) {
+    	int N = Index.docLengths.size();
+		PostingsList result = new PostingsList();
+    	int i = 0;
+		while(i<term.size()) {
+			String token = term.get(i).term;
+			PostingsList pList = index.getPostings(token);
+	    	LinkedList<PostingsEntry> eList = pList.getList();
+	    	for (PostingsEntry e : eList){
+	    		// tf = how many times the term appears in the doc
+	    		int tf = e.offsetList.size();
+	    		Integer docLength = Index.docLengths.get(e.docID);
+	    		double idf = Math.log(N/eList.size());
+	    		// multiply tf by idf gives weight for term
+	    		e.score = tf*idf/docLength;
+	    	}
+	    	if (i==0) {
+	    		result = pList;
+	    	}
+	    	else{
+		    	result = rankedmMerge(result,pList);
+	    	}
+		i++;
+		}
+		
+		java.util.Collections.sort(result.getList());
+		return result;
+	}
+
+	private PostingsList rankedmMerge(PostingsList pList1, PostingsList pList2) {
+		int ind1=0;
+		int ind2=0;
+		PostingsList result = new PostingsList();
+		while (ind1!=pList1.size() || ind2!=pList2.size()) {
+			int id1;
+			if (ind1 == pList1.size()) {
+				id1 = Integer.MAX_VALUE;
+			}
+			else {
+				id1 = pList1.get(ind1).docID;
+			}
+			int id2;
+			if (ind2 == pList2.size()) {
+				id2 = Integer.MAX_VALUE;
+			}
+			else {
+				id2 = pList2.get(ind2).docID;
+			}
+			PostingsEntry mergedEntry = new PostingsEntry();
+			if (id1==id2) {
+				mergedEntry.score = pList1.get(ind1).score + pList2.get(ind2).score;
+				mergedEntry.docID = id1;
+				ind1++;
+				ind2++;
+			}
+			else if(id1>id2) {
+				mergedEntry.score = pList2.get(ind2).score;
+				mergedEntry.docID = id2;
+				ind2++;
+			}
+			else {
+				mergedEntry.score = pList1.get(ind1).score;
+				mergedEntry.docID = id1;
+				ind1++;
+			}	
+			result.append(mergedEntry);
+		}
+		return result;
+	}
+
+	private PostingsList unRankedsearch(ArrayList<QueryTerm> term, Query query, QueryType queryType) {
     	String s1 = term.get(0).term;
     	PostingsList list1 = index.getPostings(s1);
     	if (term.size()==1) {
@@ -45,14 +128,14 @@ public class Searcher {
 		while(i<term.size()) {
 			String s2 = term.get(i).term;
 			PostingsList list2 = index.getPostings(s2);
-	    	result = merge(result,list2,queryType);
+	    	result = mergeQueryUnranked(result,list2,queryType);
 			i++;
 		}
+		
         return result;
-    }
+	}
 
-	// money transfer gives 106 instead of 105 => something diff in regex patterns
-	private PostingsList merge(PostingsList list1, PostingsList list2, QueryType queryType) {
+	private PostingsList mergeQueryUnranked(PostingsList list1, PostingsList list2, QueryType queryType) {
 		int ind1=0;
 		int ind2=0;
     	PostingsList result = new PostingsList();
@@ -78,8 +161,20 @@ public class Searcher {
 				ind1++;
 			}	
 		}
-		return result;
+		return result;	
+	
 	}
+
+//	private PostingsList rankedQuery(PostingsList list1, PostingsList list2, QueryType queryType) {
+//		PostingsEntry term = list1.get(0);
+//    	for (Entry<Integer, Integer> entry : Index.docLengths.entrySet()) {
+//    	    Integer docID = entry.getKey();
+//    	    Integer docLength = entry.getValue();
+//    	    
+//    	}
+//		
+//		return null;
+//	}
 
 	private PostingsList findConsecutive(PostingsEntry e1, PostingsEntry e2, PostingsList result) {
 		List<Integer> offsetList1 = e1.offsetList;

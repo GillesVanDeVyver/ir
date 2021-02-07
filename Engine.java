@@ -64,8 +64,8 @@ public class Engine {
      */
     public Engine( String[] args ) {
         decodeArgs( args );
-        Index index = new PersistentScalableHashedIndex(is_indexing);
-//        Index index = new HashedIndex();
+//        Index index = new PersistentScalableHashedIndex(is_indexing);
+        Index index = new HashedIndex();
 //      Index index = new PersistentHashedIndex();
         indexer = new Indexer( index, kgIndex, patterns_file );
         searcher = new Searcher( index, kgIndex );

@@ -235,7 +235,7 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
     	}
 	    	try {
 	    		if (lastThread!=null)
-				lastThread.join();
+	    			lastThread.join();
 			} 
     	catch (InterruptedException e) {
 			e.printStackTrace();
@@ -259,18 +259,23 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
      *  
      *  @return The found entry
      */
-    public Entry readEntryAndDel (long index ,long checksum, RandomAccessFile file) {  
+    public Entry readEntryAndDel (long index ,long checksum, RandomAccessFile file, int counter, boolean first) {  
         try {
         	file.seek( ptrFromIndex(index) );
             long readDataPtr = file.readLong();
             long readChecksum = file.readLong();
             int readDataSize = file.readInt();
             if (readDataSize == 0) {
-            	return null;
+            	if (counter ==0)
+            		return null;
+            	else {
+            		long newIndex = index+1;
+                	return readEntryAndDel(newIndex, checksum, file, counter-1,false);
+            	}
             }
             if (readChecksum!=checksum) { //checksum didn't match
             	long newIndex = index+1;
-            	return readEntryAndCheck(newIndex, checksum);
+            	return readEntryAndDel(newIndex, checksum, file,counter, false);
             }
             else {
             	file.seek( ptrFromIndex(index) );
@@ -288,6 +293,9 @@ public class PersistentScalableHashedIndex extends PersistentHashedIndex impleme
         }
     }
     
+    public Entry readEntryAndDel (long index ,long checksum, RandomAccessFile file, int counter) {  
+    	return readEntryAndDel (index ,checksum, file, counter, true);
+    }
 }
     
 
