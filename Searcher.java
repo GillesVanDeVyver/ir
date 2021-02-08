@@ -55,13 +55,22 @@ public class Searcher {
 			String token = term.get(i).term;
 			PostingsList pList = index.getPostings(token);
 	    	LinkedList<PostingsEntry> eList = pList.getList();
+//	    	System.out.println(eList.size());
 	    	for (PostingsEntry e : eList){
 	    		// tf = how many times the term appears in the doc
 	    		int tf = e.offsetList.size();
 	    		Integer docLength = Index.docLengths.get(e.docID);
-	    		double idf = Math.log(N/eList.size());
+	    		float frac = (float) N/eList.size();
+	    		double idf = Math.log(frac);
 	    		// multiply tf by idf gives weight for term
 	    		e.score = tf*idf/docLength;
+	    		
+	    		// for task 2.3
+//	    		e.score = idf;
+//	    		System.out.println("N" + N);
+//	    		System.out.println("eList.size()"+eList.size());
+//	    		System.out.println("frac"+frac);
+
 	    	}
 	    	if (i==0) {
 	    		result = pList;
@@ -75,6 +84,8 @@ public class Searcher {
 		java.util.Collections.sort(result.getList());
 		return result;
 	}
+	
+
 
 	private PostingsList rankedmMerge(PostingsList pList1, PostingsList pList2) {
 		int ind1=0;
