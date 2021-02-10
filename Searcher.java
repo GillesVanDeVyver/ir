@@ -7,7 +7,11 @@
 
 package ir;
 
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
@@ -25,11 +29,46 @@ public class Searcher {
     /** The k-gram index to be searched by this Searcher */
     KGramIndex kgIndex;
     
+    double[] pageRankVector;
+    
+    Integer[] sortedPageRanks;
+
+    
     /** Constructor */
     public Searcher( Index index, KGramIndex kgIndex ) {
         this.index = index;
         this.kgIndex = kgIndex;
+        
+        try {
+        	RandomAccessFile outputFile = new RandomAccessFile( "./pageRankResult", "rw" );
+    		outputFile.seek(0);
+    		
+    		int numberOfDocs = outputFile.readInt();
+    		pageRankVector = new double[numberOfDocs];
+        	for(int i = 0; i <numberOfDocs; i++){
+        		pageRankVector[i] = outputFile.readDouble();
+        	}
+        	sortedPageRanks = argsort(pageRankVector, false);
+        } catch ( IOException e ) {
+            e.printStackTrace();
+        }  
     }
+    
+    public static Integer[] argsort(final double[] a, final boolean ascending) {
+        Integer[] indexes = new Integer[a.length];
+        for (int i = 0; i < indexes.length; i++) {
+            indexes[i] = i;
+        }
+        Arrays.sort(indexes, new Comparator<Integer>() {
+            @Override
+            public int compare(final Integer i1, final Integer i2) {
+                return (ascending ? 1 : -1) * Float.compare((float) a[i1], (float) a[i2]);
+            }
+        });
+        return (indexes);
+    }
+    
+
 
     /**
      *  Searches the index for postings matching the query.
@@ -41,36 +80,49 @@ public class Searcher {
 			return unRankedsearch(term, query,queryType );
 		}
 		else {
-			return rankedsearch(term, query,queryType );
+			return rankedsearch(term, query,rankingType );
 		}
 
     }
     
 
-	private PostingsList rankedsearch(ArrayList<QueryTerm> term, Query query, QueryType queryType) {
-    	int N = Index.docLengths.size();
+	private PostingsList rankedsearch(ArrayList<QueryTerm> term, Query query , RankingType rankingType) {
 		PostingsList result = new PostingsList();
+    	int N = Index.docLengths.size();
     	int i = 0;
 		while(i<term.size()) {
 			String token = term.get(i).term;
 			PostingsList pList = index.getPostings(token);
 	    	LinkedList<PostingsEntry> eList = pList.getList();
-//	    	System.out.println(eList.size());
 	    	for (PostingsEntry e : eList){
-	    		// tf = how many times the term appears in the doc
-	    		int tf = e.offsetList.size();
-	    		Integer docLength = Index.docLengths.get(e.docID);
-	    		float frac = (float) N/eList.size();
-	    		double idf = Math.log(frac);
-	    		// multiply tf by idf gives weight for term
-	    		e.score = tf*idf/docLength;
-	    		
-	    		// for task 2.3
-//	    		e.score = idf;
-//	    		System.out.println("N" + N);
-//	    		System.out.println("eList.size()"+eList.size());
-//	    		System.out.println("frac"+frac);
 
+	        	switch(rankingType) {
+					case TF_IDF:
+			    		// tf = how many times the term appears in the doc
+			    		int tf = e.offsetList.size();
+			    		Integer docLength = Index.docLengths.get(e.docID);
+			    		float frac = (float) N/eList.size();
+			    		double idf = Math.log(frac);
+			    		// multiply tf by idf gives weight for term
+			    		e.score = tf*idf/docLength;
+			    		// for task 2.3
+	//		    		e.score = idf;
+	//		    		System.out.println("N" + N);
+	//		    		System.out.println("eList.size()"+eList.size());
+	//		    		System.out.println("frac"+frac);
+			    		break;
+					case PAGERANK:
+						e.score = pageRankVector[e.docID];
+						break;
+					case COMBINATION:
+						double w1 = 1;
+						double w2 = 2000;
+			    		int tfc = e.offsetList.size();
+			    		Integer docLengthc = Index.docLengths.get(e.docID);
+			    		float fracc = (float) N/eList.size();
+			    		double idfc = Math.log(fracc);
+			    		e.score = w1*tfc*idfc/docLengthc+w2*pageRankVector[e.docID];
+	        	}
 	    	}
 	    	if (i==0) {
 	    		result = pList;
@@ -80,12 +132,9 @@ public class Searcher {
 	    	}
 		i++;
 		}
-		
 		java.util.Collections.sort(result.getList());
 		return result;
 	}
-	
-
 
 	private PostingsList rankedmMerge(PostingsList pList1, PostingsList pList2) {
 		int ind1=0;
