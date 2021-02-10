@@ -74,21 +74,21 @@ public class Searcher {
      *  Searches the index for postings matching the query.
      *  @return A postings list representing the result of the query.
      */
-    public PostingsList search( Query query, QueryType queryType, RankingType rankingType ) { 
+    public PostingsList search( Query query, QueryType queryType, RankingType rankingType, NormalizationType normType ) { 
     	ArrayList<QueryTerm> term = query.queryterm;
 		if (queryType==queryType.INTERSECTION_QUERY || queryType==queryType.PHRASE_QUERY) {
 			return unRankedsearch(term, query,queryType );
 		}
 		else {
-			return rankedsearch(term, query,rankingType );
+			return rankedsearch(term, query,rankingType,normType );
 		}
 
     }
     
 
-	private PostingsList rankedsearch(ArrayList<QueryTerm> term, Query query , RankingType rankingType) {
+	private PostingsList rankedsearch(ArrayList<QueryTerm> term, Query query , RankingType rankingType, NormalizationType normType) {
 		PostingsList result = new PostingsList();
-    	int N = Index.docLengths.size();
+    	int N = Index.docNames.size();
     	int i = 0;
 		while(i<term.size()) {
 			String token = term.get(i).term;
@@ -100,11 +100,21 @@ public class Searcher {
 					case TF_IDF:
 			    		// tf = how many times the term appears in the doc
 			    		int tf = e.offsetList.size();
-			    		Integer docLength = Index.docLengths.get(e.docID);
-			    		float frac = (float) N/eList.size();
-			    		double idf = Math.log(frac);
-			    		// multiply tf by idf gives weight for term
-			    		e.score = tf*idf/docLength;
+//			    		Integer docLength = Index.docLengths.get(e.docID);
+			    		
+			    		float docLength;
+			    		if (normType == NormalizationType.EUCLIDEAN) {
+			    			docLength = Index.euclidDocLengths.get(e.docID);
+			    		}
+			    		else {
+				    		docLength = Index.docLengths.get(e.docID);
+			    		}
+
+			    		float frac = ((float) N)/((float)eList.size());
+			    		float idf = (float) Math.log(frac);
+					
+					// multiply tf by idf gives weight for term
+			    		e.score = ((float) tf)*idf/docLength;
 			    		// for task 2.3
 	//		    		e.score = idf;
 	//		    		System.out.println("N" + N);
@@ -118,7 +128,13 @@ public class Searcher {
 						double w1 = 1;
 						double w2 = 2000;
 			    		int tfc = e.offsetList.size();
-			    		Integer docLengthc = Index.docLengths.get(e.docID);
+			    		float docLengthc;
+			    		if (normType == NormalizationType.EUCLIDEAN) {
+			    			docLengthc = Index.euclidDocLengths.get(e.docID);
+			    		}
+			    		else {
+				    		docLengthc = Index.docLengths.get(e.docID);
+			    		}
 			    		float fracc = (float) N/eList.size();
 			    		double idfc = Math.log(fracc);
 			    		e.score = w1*tfc*idfc/docLengthc+w2*pageRankVector[e.docID];

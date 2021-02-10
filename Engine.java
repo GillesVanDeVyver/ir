@@ -8,7 +8,10 @@
 package ir;
 
 import java.util.ArrayList;
+import java.util.Map.Entry;
 import java.io.File;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 
 /**
  *  This is the main class for the search engine.
@@ -92,10 +95,53 @@ public class Engine {
         } else {
             gui.displayInfoText( "Index is loaded from disk" );
         }
+        
+        
+        calculateDocLenghts();
+        
+//    	RandomAccessFile euclidLengthsFile = null;
+//    	try {
+//    		euclidLengthsFile = new RandomAccessFile( "./euclidLengths", "rw" );
+//    		euclidLengthsFile.seek(euclidLengthsFile.length());
+//		} catch (IOException e1) {
+//			e1.printStackTrace();
+//		}
+        
+        
+//  euclidLengthsFile.writeInt(docID);
+//  euclidLengthsFile.writeDouble(Math.sqrt(euclidLen));
+        
+        
+        
+//    	RandomAccessFile euclidLengthsFile = null;
+//    	try {
+//    		euclidLengthsFile = new RandomAccessFile( "./euclidLengths", "rw" );
+//    		euclidLengthsFile.seek(0);
+//    		for ( int i=0; i<indexer.lastDocID; i++ ) {
+//    			int docID = euclidLengthsFile.readInt();
+//                index.euclidDocLengths.put( docID, euclidLengthsFile.readDouble());
+//    		}
+//
+//		} catch (IOException e1) {
+//			e1.printStackTrace();
+//		}
+//    	
+    	
     }
 
 
-    /* ----------------------------------------------- */
+    private void calculateDocLenghts() {
+    	indexer.lastDocID=0;
+        synchronized ( indexLock ) {
+            for ( int i=0; i<dirNames.size(); i++ ) {
+                File dokDir = new File( dirNames.get( i ));
+                indexer.processFilesSecondPass( dokDir );
+            }
+        }
+	}
+
+
+	/* ----------------------------------------------- */
 
     /**
      *   Decodes the command line arguments.

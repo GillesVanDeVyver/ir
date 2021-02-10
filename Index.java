@@ -21,6 +21,9 @@ public interface Index {
     
     /** Mapping from document identifier to document length. */
     public HashMap<Integer,Integer> docLengths = new HashMap<Integer,Integer>();
+    
+    public HashMap<Integer,Float> euclidDocLengths = new HashMap<Integer,Float>();
+
 
     /** Inserts a token into the index. */
     public void insert( String token, int docID, int offset );
