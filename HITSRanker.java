@@ -8,6 +8,7 @@
 package ir;
 
 import java.util.*;
+import java.util.Map.Entry;
 import java.io.*;
 
 
@@ -33,6 +34,9 @@ public class HITSRanker {
      *   Mapping from the titles to internal document ids used in the links file
      */
     HashMap<String,Integer> titleToId = new HashMap<String,Integer>();
+    
+    HashMap<Integer,HashMap<Integer,Boolean>> reversedLink = new HashMap<Integer,HashMap<Integer,Boolean>>();
+
 
     /**
      *   Sparse vector containing hub scores
@@ -43,6 +47,8 @@ public class HITSRanker {
      *   Sparse vector containing authority scores
      */
     HashMap<Integer,Double> authorities;
+    
+    PageRank PR;
 
     
     /* --------------------------------------------- */
@@ -70,7 +76,9 @@ public class HITSRanker {
      */
     public HITSRanker( String linksFilename, String titlesFilename, Index index ) {
         this.index = index;
+        this.PR = new PageRank();
         readDocs( linksFilename, titlesFilename );
+        rank();
     }
 
 
@@ -101,25 +109,131 @@ public class HITSRanker {
      * @param      linksFilename   File containing the links of the graph
      * @param      titlesFilename  File containing the mapping between nodeIDs and pages titles
      */
-    void readDocs( String linksFilename, String titlesFilename ) {
-        //
-        // YOUR CODE HERE
-        //
+    void readDocs( String linksFilename, String titlesFilename) {
+        int noDocs = PR.readDocs(linksFilename);
+        createdReversedLinks(PR.link);
+	    try {
+    	    BufferedReader in = new BufferedReader( new FileReader( titlesFilename ));
+    	    String line;
+			while ((line = in.readLine()) != null) {    		
+				String[] splittedLine = line.split(";");
+				titleToId.put(splittedLine[1], Integer.parseInt(splittedLine[0]));
+			}
+		} catch (NumberFormatException | IOException e) {
+			e.printStackTrace();
+		}
     }
 
-    /**
+    private void createdReversedLinks(HashMap<Integer, HashMap<Integer, Boolean>> link) {
+    	for (Map.Entry<Integer, HashMap<Integer, Boolean>> entry : link.entrySet()) {
+    	    int from = entry.getKey();
+    	    HashMap<Integer, Boolean> toSet = entry.getValue();
+        	for (Map.Entry<Integer,Boolean> entry2 : toSet.entrySet()) {
+        	    int to = entry2.getKey();
+        	    HashMap<Integer, Boolean> reversedEntry = reversedLink.get(to);
+        	    if (reversedEntry==null) {
+        	    	reversedLink.put(to, new HashMap<Integer,Boolean>());
+        	    	reversedEntry = reversedLink.get(to);
+        	    }
+    	    	reversedEntry.put(from, true);
+        	} 
+    	} 
+		
+	}
+	/**
      * Perform HITS iterations until convergence
      *
      * @param      titles  The titles of the documents in the root set
      */
     private void iterate(String[] titles) {
-        //
-        // YOUR CODE HERE
-        //
+    	int[] docIDs = new int[titles.length];
+    	for (int i = 0; i<titles.length; i++) {
+    		docIDs[i] = titleToId.get(titles[i]);
+    	}
+    	HashMap<Integer, Double> aOld = new HashMap<Integer,Double>();
+    	HashMap<Integer, Double> hOld = new HashMap<Integer,Double>();
+    	HashMap<Integer, Double> aNew = new HashMap<Integer,Double>();
+    	HashMap<Integer, Double> hNew = new HashMap<Integer,Double>();
+    	for (int i = 0; i<docIDs.length; i++) {
+    		aOld.put(PR.docNumber.get(String.valueOf(docIDs[i])),1.0);
+    		hOld.put(PR.docNumber.get(String.valueOf(docIDs[i])),1.0);
+    	}
+    	int convergedCount = 10;
+    	while (convergedCount!=0) {
+    		aNew = sparseMatrixVectorMul(hOld,reversedLink);
+    		hNew = sparseMatrixVectorMul(aOld,PR.link);
+    		if(!diff(aNew, aOld)&&!diff(hNew,hOld)) {
+    			convergedCount--;
+    		}
+    		else {
+    			convergedCount = 10;
+    		}
+    		aOld = (HashMap<Integer, Double>) aNew.clone();
+    		hOld = (HashMap<Integer, Double>) hNew.clone();
+    	}
+    	authorities = new HashMap<Integer,Double>();
+    	for (Entry<Integer, Double> e : aNew.entrySet()) {
+    		authorities.put(Integer.parseInt(PR.docName[e.getKey()]),e.getValue());
+    	}
+    	
+    	hubs = new HashMap<Integer,Double>();
+    	for (Entry<Integer, Double> e : hNew.entrySet()) {
+    		hubs.put(Integer.parseInt(PR.docName[e.getKey()]),e.getValue());
+    	}
+    	
+    }
+    
+    
+    private boolean diff(HashMap<Integer, Double> vec1, HashMap<Integer, Double> vec2) {
+    	for (Entry<Integer, Double> e : vec1.entrySet()) {
+    		if (Math.abs(vec1.get(e.getKey())-vec2.get(e.getKey()))>EPSILON) {
+    			return true;
+    		}
+    	}
+    	return false;
+	}
+
+
+	HashMap<Integer, Double> sparseMatrixVectorMul(HashMap<Integer,Double> base,HashMap<Integer,HashMap<Integer,Boolean>>links) {
+		HashMap<Integer,Double> result = new HashMap<Integer,Double>();
+		for (Entry<Integer, Double> e : base.entrySet()) {
+    		HashMap<Integer, Boolean> entries = links.get(e.getKey());
+    		double entryVal = 0;
+    		if (entries != null) {
+            	for (Map.Entry<Integer,Boolean> e2 : entries.entrySet()) {
+            		Double baseVal = base.get(e2.getKey());
+            		if (baseVal!=null) {
+            			entryVal+=baseVal;
+            		}
+            	}
+    		}
+    		result.put(e.getKey(), entryVal);
+    	}
+    		
+		result = normalize(result);
+		return result;
     }
 
 
-    /**
+    private HashMap<Integer, Double> normalize(HashMap<Integer, Double> vec) {
+    	double norm = norm(vec);
+    	for (Entry<Integer, Double> e : vec.entrySet()) {
+    		vec.put(e.getKey(), e.getValue()/norm);
+    	}
+
+    	return vec;
+	}
+    
+    private double norm(HashMap<Integer, Double> vec) {
+    	double norm = 0;
+    	for (Entry<Integer, Double> e : vec.entrySet()) {
+    		norm+=Math.pow(e.getValue(),2);
+    	}
+    	return Math.sqrt(norm);
+    }
+
+
+	/**
      * Rank the documents in the subgraph induced by the documents present
      * in the postings list `post`.
      *

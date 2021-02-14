@@ -1,3 +1,5 @@
+package ir;
+
 import java.util.*;
 import java.io.*;
 
@@ -78,12 +80,18 @@ public class PageRank {
 //		}
 		iterateMC4UntilConvergence(noOfDocs, c);
     }
+    
+    public PageRank() {
+	}
 
 
     /* --------------------------------------------- */
 
 
-    /**
+
+
+
+	/**
      *   Reads the documents and fills the data structures. 
      *
      *   @return the number of documents read.
