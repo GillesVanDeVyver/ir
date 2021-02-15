@@ -22,7 +22,7 @@ public interface Index {
     /** Mapping from document identifier to document length. */
     public HashMap<Integer,Integer> docLengths = new HashMap<Integer,Integer>();
     
-    public HashMap<Integer,Float> euclidDocLengths = new HashMap<Integer,Float>();
+    public HashMap<Integer, Double> euclidDocLengths = new HashMap<Integer,Double>();
 
 
     /** Inserts a token into the index. */

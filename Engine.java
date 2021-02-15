@@ -9,7 +9,9 @@ package ir;
 
 import java.util.ArrayList;
 import java.util.Map.Entry;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
@@ -97,40 +99,31 @@ public class Engine {
         }
         
         
-        calculateDocLenghts();
+//        calculateDocLenghts("euclid.txt"); //only once
+        readDocLengths("euclid.txt");
+        searcher.initPageRankVector();
         
-//    	RandomAccessFile euclidLengthsFile = null;
-//    	try {
-//    		euclidLengthsFile = new RandomAccessFile( "./euclidLengths", "rw" );
-//    		euclidLengthsFile.seek(euclidLengthsFile.length());
-//		} catch (IOException e1) {
-//			e1.printStackTrace();
-//		}
-        
-        
-//  euclidLengthsFile.writeInt(docID);
-//  euclidLengthsFile.writeDouble(Math.sqrt(euclidLen));
-        
-        
-        
-//    	RandomAccessFile euclidLengthsFile = null;
-//    	try {
-//    		euclidLengthsFile = new RandomAccessFile( "./euclidLengths", "rw" );
-//    		euclidLengthsFile.seek(0);
-//    		for ( int i=0; i<indexer.lastDocID; i++ ) {
-//    			int docID = euclidLengthsFile.readInt();
-//                index.euclidDocLengths.put( docID, euclidLengthsFile.readDouble());
-//    		}
-//
-//		} catch (IOException e1) {
-//			e1.printStackTrace();
-//		}
+
 //    	
     	
     }
 
 
-    private void calculateDocLenghts() {
+    private void readDocLengths(String fileName) {
+	    try {
+    	    BufferedReader in = new BufferedReader( new FileReader( fileName ));
+    	    String line;
+			while ((line = in.readLine()) != null) {    		
+				String[] splittedLine = line.split(":");
+				index.euclidDocLengths.put(Integer.parseInt(splittedLine[0]), Double.parseDouble(splittedLine[1]));
+			}
+		} catch (NumberFormatException | IOException e) {
+			e.printStackTrace();
+		}		
+	}
+
+
+	private void calculateDocLenghts(String fileName) {
     	indexer.lastDocID=0;
         synchronized ( indexLock ) {
             for ( int i=0; i<dirNames.size(); i++ ) {
@@ -138,6 +131,8 @@ public class Engine {
                 indexer.processFilesSecondPass( dokDir );
             }
         }
+        HITSRanker.writeToFile(index.euclidDocLengths, fileName, index.euclidDocLengths.size());
+        
 	}
 
 

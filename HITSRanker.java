@@ -93,7 +93,7 @@ public class HITSRanker {
      *
      * @return     The file name.
      */
-    private String getFileName( String path ) {
+    public static String getFileName( String path ) {
         String result = "";
         StringTokenizer tok = new StringTokenizer( path, "\\/" );
         while ( tok.hasMoreTokens() ) {
@@ -284,7 +284,7 @@ public class HITSRanker {
      * @param      fname      The filename
      * @param      k          A number of entries to write
      */
-    void writeToFile(HashMap<Integer,Double> map, String fname, int k) {
+    static void writeToFile(HashMap<Integer,Double> map, String fname, int k) {
         try {
             BufferedWriter writer = new BufferedWriter(new FileWriter(fname));
             

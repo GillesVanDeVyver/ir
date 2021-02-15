@@ -78,7 +78,8 @@ public class PageRank {
 //			avg = avg/nbIter;
 //			System.out.println(avg);
 //		}
-		iterateMC4UntilConvergence(noOfDocs, c);
+//		iterateMC4UntilConvergence(noOfDocs, c);
+		iterate(noOfDocs,10000);
     }
     
     public PageRank() {

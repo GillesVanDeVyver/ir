@@ -160,7 +160,7 @@ public class Indexer {
 //                        System.out.println("f.getPath()"+f.getPath());
 //                        System.out.println("Math.sqrt(euclidLen)"+Math.sqrt(euclidLen));
                     
-                    index.euclidDocLengths.put( docID, (float) Math.sqrt(euclidLen));
+                    index.euclidDocLengths.put( docID, (double) Math.sqrt(euclidLen));
                     
                     
                     

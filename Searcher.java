@@ -7,13 +7,17 @@
 
 package ir;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import ir.Query.QueryTerm;
@@ -29,30 +33,59 @@ public class Searcher {
     /** The k-gram index to be searched by this Searcher */
     KGramIndex kgIndex;
     
-    double[] pageRankVector;
+    public HashMap<Integer, Double> pageRankVector = new HashMap<Integer,Double>();
+
+	private HashMap<String, Double> pageRankScores = new HashMap<String, Double>();;
     
-    Integer[] sortedPageRanks;
+//    Integer[] sortedPageRanks;
 
     
     /** Constructor */
     public Searcher( Index index, KGramIndex kgIndex ) {
         this.index = index;
         this.kgIndex = kgIndex;
-        
-        try {
-        	RandomAccessFile outputFile = new RandomAccessFile( "./pageRankResult", "rw" );
-    		outputFile.seek(0);
-    		
-    		int numberOfDocs = outputFile.readInt();
-    		pageRankVector = new double[numberOfDocs];
-        	for(int i = 0; i <numberOfDocs; i++){
-        		pageRankVector[i] = outputFile.readDouble();
-        	}
-        	sortedPageRanks = argsort(pageRankVector, false);
-        } catch ( IOException e ) {
-            e.printStackTrace();
-        }  
+        readPageRank("PageRankResult.txt");
     }
+    
+    public void readPageRank(String fName) {
+	    try {
+    	    BufferedReader in = new BufferedReader( new FileReader( fName ));
+    	    int nbDocs = Integer.parseInt(in.readLine());
+        	for (int i =0; i<nbDocs; i++) {
+        		pageRankVector.put(i, 0.0);
+        	}
+    	    String line;
+			while ((line = in.readLine()) != null) {    		
+				String[] splittedLine = line.split(";");
+				String docName = splittedLine[0];
+				double score = Double.parseDouble(splittedLine[1]);
+
+				pageRankScores.put(docName, score);
+			}
+
+
+			
+			
+		} catch (NumberFormatException | IOException e) {
+			e.printStackTrace();
+		}
+    }
+    
+    public void initPageRankVector() {
+		
+    	for (Entry<Integer, String> e : index.docNames.entrySet()) {
+    		int docID = e.getKey();
+    		String docName = HITSRanker.getFileName(e.getValue());
+    		double docScore = 0.0;
+    		System.out.println("docName" + docName);
+    		if (pageRankScores.get(docName)!=null){
+    			docScore = pageRankScores.get(docName);
+    		}
+    		pageRankVector.put(docID, docScore);
+
+    	}
+    }
+    
     
     public static Integer[] argsort(final double[] a, final boolean ascending) {
         Integer[] indexes = new Integer[a.length];
@@ -102,12 +135,12 @@ public class Searcher {
 			    		int tf = e.offsetList.size();
 //			    		Integer docLength = Index.docLengths.get(e.docID);
 			    		
-			    		float docLength;
+			    		Double docLength;
 			    		if (normType == NormalizationType.EUCLIDEAN) {
 			    			docLength = Index.euclidDocLengths.get(e.docID);
 			    		}
 			    		else {
-				    		docLength = Index.docLengths.get(e.docID);
+				    		docLength = (double) Index.docLengths.get(e.docID);
 			    		}
 
 			    		float frac = ((float) N)/((float)eList.size());
@@ -122,22 +155,28 @@ public class Searcher {
 	//		    		System.out.println("frac"+frac);
 			    		break;
 					case PAGERANK:
-						e.score = pageRankVector[e.docID];
+						e.score = pageRankVector.get(e.docID);
+						
+						if (e.score > 0.0079) {
+							System.out.println(e.docID);
+							System.out.println(index.docNames.get(e.docID));
+						}
+						
 						break;
 					case COMBINATION:
 						double w1 = 1;
 						double w2 = 2000;
 			    		int tfc = e.offsetList.size();
-			    		float docLengthc;
+			    		Double docLengthc;
 			    		if (normType == NormalizationType.EUCLIDEAN) {
 			    			docLengthc = Index.euclidDocLengths.get(e.docID);
 			    		}
 			    		else {
-				    		docLengthc = Index.docLengths.get(e.docID);
+				    		docLengthc = (double) Index.docLengths.get(e.docID);
 			    		}
 			    		float fracc = (float) N/eList.size();
 			    		double idfc = Math.log(fracc);
-			    		e.score = w1*tfc*idfc/docLengthc+w2*pageRankVector[e.docID];
+			    		e.score = w1*tfc*idfc/docLengthc+w2*pageRankVector.get(e.docID);
 	        	}
 	    	}
 	    	if (i==0) {
