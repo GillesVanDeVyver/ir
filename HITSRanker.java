@@ -146,18 +146,44 @@ public class HITSRanker {
      * @param      titles  The titles of the documents in the root set
      */
     private void iterate(String[] titles) {
-    	int[] docIDs = new int[titles.length];
-    	for (int i = 0; i<titles.length; i++) {
-    		docIDs[i] = titleToId.get(titles[i]);
+    	
+    	Set<Integer> docIDs = new HashSet<Integer>();
+    	for (String title: titles) {
+    		int rootID = titleToId.get(title);
+    		docIDs.add(rootID);
+    		HashMap<Integer, Boolean> outLinks = PR.link.get(rootID);
+    		if (outLinks !=null) {
+            	for (Entry<Integer, Boolean> entryOut : outLinks.entrySet()) {
+            		docIDs.add(entryOut.getKey());
+            	}
+    		}
+      		HashMap<Integer, Boolean> inLinks = reversedLink.get(rootID);
+    		if (inLinks !=null) {
+            	for (Entry<Integer, Boolean> entryIn : inLinks.entrySet()) {
+            		docIDs.add(entryIn.getKey());
+            	}
+    		}
+
     	}
+    	
+    	
+    	
+
     	HashMap<Integer, Double> aOld = new HashMap<Integer,Double>();
     	HashMap<Integer, Double> hOld = new HashMap<Integer,Double>();
     	HashMap<Integer, Double> aNew = new HashMap<Integer,Double>();
     	HashMap<Integer, Double> hNew = new HashMap<Integer,Double>();
-    	for (int i = 0; i<docIDs.length; i++) {
-    		aOld.put(PR.docNumber.get(String.valueOf(docIDs[i])),1.0);
-    		hOld.put(PR.docNumber.get(String.valueOf(docIDs[i])),1.0);
+    	for (int docID: docIDs) {
+//    		System.out.println(docID);
+//    		System.out.println(PR.docNumber.get(String.valueOf(docID)));
+
+    		aOld.put(PR.docNumber.get(String.valueOf(docID)),1.0);
+    		hOld.put(PR.docNumber.get(String.valueOf(docID)),1.0);
     	}
+//    	for (int i = 0; i<docIDs.length; i++) {
+//    		aOld.put(PR.docNumber.get(String.valueOf(docIDs[i])),1.0);
+//    		hOld.put(PR.docNumber.get(String.valueOf(docIDs[i])),1.0);
+//    	}
     	int convergedCount = 10;
     	while (convergedCount!=0) {
     		aNew = sparseMatrixVectorMul(hOld,reversedLink);
@@ -168,17 +194,22 @@ public class HITSRanker {
     		else {
     			convergedCount = 10;
     		}
+        	
     		aOld = (HashMap<Integer, Double>) aNew.clone();
     		hOld = (HashMap<Integer, Double>) hNew.clone();
     	}
     	authorities = new HashMap<Integer,Double>();
     	for (Entry<Integer, Double> e : aNew.entrySet()) {
-    		authorities.put(Integer.parseInt(PR.docName[e.getKey()]),e.getValue());
+    		if (e.getKey()!=null) {
+        		authorities.put(Integer.parseInt(PR.docName[e.getKey()]),e.getValue());
+    		}
     	}
     	
     	hubs = new HashMap<Integer,Double>();
     	for (Entry<Integer, Double> e : hNew.entrySet()) {
-    		hubs.put(Integer.parseInt(PR.docName[e.getKey()]),e.getValue());
+    		if (e.getKey()!=null) {
+        		hubs.put(Integer.parseInt(PR.docName[e.getKey()]),e.getValue());
+    		}
     	}
     	
     }
@@ -242,9 +273,10 @@ public class HITSRanker {
      * @return     A list of postings ranked according to the hub and authority scores.
      */
     PostingsList rank(PostingsList post) {
-        //
-        // YOUR CODE HERE
-        //
+        LinkedList<PostingsEntry> entryList = post.getList();
+        for (PostingsEntry e : entryList) {
+        	
+        }
         return null;
     }
 
