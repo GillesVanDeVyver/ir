@@ -101,6 +101,7 @@ public class PageRank {
 //		iterate(noOfDocs,10000);
     }
     public PageRank() {
+//    	int noOfDocs = readDocs("linksDavis.txt");
     }
 
 

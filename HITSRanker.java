@@ -87,7 +87,9 @@ public class HITSRanker {
     }
     
     public HITSRanker( String linksFilename, String titlesFilename, Index index ) {
-    	new HITSRanker( linksFilename, titlesFilename, index, true);
+        this.index = index;
+        this.PR = new PageRank();
+        readDocs( linksFilename, titlesFilename );
     }
 
 
@@ -195,7 +197,7 @@ public class HITSRanker {
     	}
     	int convergedCount = 10;
     	while (convergedCount!=0) {
-    		aNew = sparseMatrixVectorMul(hOld,reversedLink);
+    		aNew = sparseMatrixVectorMul(hOld,reversedLink);    		
     		hNew = sparseMatrixVectorMul(aOld,PR.link);
     		if(!diff(aNew, aOld)&&!diff(hNew,hOld)) {
     			convergedCount--;
