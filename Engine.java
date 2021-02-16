@@ -101,14 +101,9 @@ public class Engine {
             gui.displayInfoText( "Index is loaded from disk" );
         }
         
-        
-//        calculateDocLenghts("euclid.txt"); //only once
+//      calculateDocLenghts("euclid.txt"); //only once
         readDocLengths("euclid.txt");
         searcher.initPageRankVector();
-        
-
-//    	
-    	
     }
 
 

@@ -127,7 +127,7 @@ public class Searcher {
 		while(i<term.size()) {
 			String token = term.get(i).term;
 			PostingsList pList = index.getPostings(token);
-	    	LinkedList<PostingsEntry> eList = pList.getList();
+	    	LinkedList<PostingsEntry> eList = pList.getCopy().getList();
 
 	    		for (PostingsEntry e : eList){
 	
@@ -136,20 +136,31 @@ public class Searcher {
 				    		// tf = how many times the term appears in the doc
 				    		int tf = e.offsetList.size();
 	//			    		Integer docLength = Index.docLengths.get(e.docID);
+
+				    		
 				    		
 				    		Double docLength;
 				    		if (normType == NormalizationType.EUCLIDEAN) {
-				    			docLength = Index.euclidDocLengths.get(e.docID);
+				    			docLength = index.euclidDocLengths.get(e.docID);
 				    		}
 				    		else {
-					    		docLength = (double) Index.docLengths.get(e.docID);
+					    		docLength = (double) index.docLengths.get(e.docID);
 				    		}
 	
 				    		float frac = ((float) N)/((float)eList.size());
 				    		float idf = (float) Math.log(frac);
+				    		
 						
 						// multiply tf by idf gives weight for term
 				    		e.score = ((float) tf)*idf/docLength;
+				    		
+				    		if (e.score >Double.MAX_VALUE) {
+				    			System.out.println(docLength);
+				    			System.out.println(index.docNames.get(e.docID));
+				    			
+				    		}
+				    		
+				    		
 				    		// for task 2.3
 		//		    		e.score = idf;
 		//		    		System.out.println("N" + N);
@@ -165,7 +176,7 @@ public class Searcher {
 				    		int tfc = e.offsetList.size();
 				    		Double docLengthc;
 				    		if (normType == NormalizationType.EUCLIDEAN) {
-				    			docLengthc = Index.euclidDocLengths.get(e.docID);
+				    			docLengthc = index.euclidDocLengths.get(e.docID);
 				    		}
 				    		else {
 					    		docLengthc = (double) Index.docLengths.get(e.docID);
@@ -174,22 +185,22 @@ public class Searcher {
 				    		double idfc = Math.log(fracc);
 				    		e.score = w1*tfc*idfc/docLengthc+w2*pageRankVector.get(e.docID);
 				    		break;
-						case HITS:
+						case HITS: // first take union to get root set, then calc scores
 							break;
 		        	}
 		    	}
 	    	
 	    	if (i==0) {
-	    		result = (PostingsList) pList.getCopy();
+	    		result = (PostingsList) pList;
 	    	}
 	    	else{
-		    	result = rankedmMerge(result.getCopy(),pList.getCopy());
+		    	result = rankedmMerge(result,pList);
 	    	}
 
 		i++;
 		}
     	if (rankingType == rankingType.HITS) {
-    		result = hitsRanker.rank(result.getCopy()).getCopy();
+    		result = hitsRanker.rank(result);
     	}
 		java.util.Collections.sort(result.getList());
 		return result;
@@ -233,7 +244,6 @@ public class Searcher {
 			}	
 			result.append(mergedEntry);
 		}
-		System.out.println("result merged" + result.size());
 		return result;
 	}
 
