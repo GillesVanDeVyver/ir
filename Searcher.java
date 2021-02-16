@@ -35,15 +35,17 @@ public class Searcher {
     
     public HashMap<Integer, Double> pageRankVector = new HashMap<Integer,Double>();
 
-	private HashMap<String, Double> pageRankScores = new HashMap<String, Double>();;
+	private HashMap<String, Double> pageRankScores = new HashMap<String, Double>();
+
+	private HITSRanker hitsRanker;;
     
 //    Integer[] sortedPageRanks;
 
     
-    /** Constructor */
-    public Searcher( Index index, KGramIndex kgIndex ) {
+    public Searcher( Index index, KGramIndex kgIndex, HITSRanker hitsRanker ) {
         this.index = index;
         this.kgIndex = kgIndex;
+        this.hitsRanker = hitsRanker;
         readPageRank("PageRankResult.txt");
     }
     
@@ -77,7 +79,6 @@ public class Searcher {
     		int docID = e.getKey();
     		String docName = HITSRanker.getFileName(e.getValue());
     		double docScore = 0.0;
-    		System.out.println("docName" + docName);
     		if (pageRankScores.get(docName)!=null){
     			docScore = pageRankScores.get(docName);
     		}
@@ -127,66 +128,69 @@ public class Searcher {
 			String token = term.get(i).term;
 			PostingsList pList = index.getPostings(token);
 	    	LinkedList<PostingsEntry> eList = pList.getList();
-	    	for (PostingsEntry e : eList){
 
-	        	switch(rankingType) {
-					case TF_IDF:
-			    		// tf = how many times the term appears in the doc
-			    		int tf = e.offsetList.size();
-//			    		Integer docLength = Index.docLengths.get(e.docID);
-			    		
-			    		Double docLength;
-			    		if (normType == NormalizationType.EUCLIDEAN) {
-			    			docLength = Index.euclidDocLengths.get(e.docID);
-			    		}
-			    		else {
-				    		docLength = (double) Index.docLengths.get(e.docID);
-			    		}
-
-			    		float frac = ((float) N)/((float)eList.size());
-			    		float idf = (float) Math.log(frac);
-					
-					// multiply tf by idf gives weight for term
-			    		e.score = ((float) tf)*idf/docLength;
-			    		// for task 2.3
-	//		    		e.score = idf;
-	//		    		System.out.println("N" + N);
-	//		    		System.out.println("eList.size()"+eList.size());
-	//		    		System.out.println("frac"+frac);
-			    		break;
-					case PAGERANK:
-						e.score = pageRankVector.get(e.docID);
+	    		for (PostingsEntry e : eList){
+	
+		        	switch(rankingType) {
+						case TF_IDF:
+				    		// tf = how many times the term appears in the doc
+				    		int tf = e.offsetList.size();
+	//			    		Integer docLength = Index.docLengths.get(e.docID);
+				    		
+				    		Double docLength;
+				    		if (normType == NormalizationType.EUCLIDEAN) {
+				    			docLength = Index.euclidDocLengths.get(e.docID);
+				    		}
+				    		else {
+					    		docLength = (double) Index.docLengths.get(e.docID);
+				    		}
+	
+				    		float frac = ((float) N)/((float)eList.size());
+				    		float idf = (float) Math.log(frac);
 						
-						if (e.score > 0.0079) {
-							System.out.println(e.docID);
-							System.out.println(index.docNames.get(e.docID));
-						}
-						
-						break;
-					case COMBINATION:
-						double w1 = 1;
-						double w2 = 2000;
-			    		int tfc = e.offsetList.size();
-			    		Double docLengthc;
-			    		if (normType == NormalizationType.EUCLIDEAN) {
-			    			docLengthc = Index.euclidDocLengths.get(e.docID);
-			    		}
-			    		else {
-				    		docLengthc = (double) Index.docLengths.get(e.docID);
-			    		}
-			    		float fracc = (float) N/eList.size();
-			    		double idfc = Math.log(fracc);
-			    		e.score = w1*tfc*idfc/docLengthc+w2*pageRankVector.get(e.docID);
-	        	}
-	    	}
+						// multiply tf by idf gives weight for term
+				    		e.score = ((float) tf)*idf/docLength;
+				    		// for task 2.3
+		//		    		e.score = idf;
+		//		    		System.out.println("N" + N);
+		//		    		System.out.println("eList.size()"+eList.size());
+		//		    		System.out.println("frac"+frac);
+				    		break;
+						case PAGERANK:
+							e.score = pageRankVector.get(e.docID);
+							break;
+						case COMBINATION:
+							double w1 = 1;
+							double w2 = 100;
+				    		int tfc = e.offsetList.size();
+				    		Double docLengthc;
+				    		if (normType == NormalizationType.EUCLIDEAN) {
+				    			docLengthc = Index.euclidDocLengths.get(e.docID);
+				    		}
+				    		else {
+					    		docLengthc = (double) Index.docLengths.get(e.docID);
+				    		}
+				    		float fracc = (float) N/eList.size();
+				    		double idfc = Math.log(fracc);
+				    		e.score = w1*tfc*idfc/docLengthc+w2*pageRankVector.get(e.docID);
+				    		break;
+						case HITS:
+							break;
+		        	}
+		    	}
+	    	
 	    	if (i==0) {
-	    		result = pList;
+	    		result = (PostingsList) pList.getCopy();
 	    	}
 	    	else{
-		    	result = rankedmMerge(result,pList);
+		    	result = rankedmMerge(result.getCopy(),pList.getCopy());
 	    	}
+
 		i++;
 		}
+    	if (rankingType == rankingType.HITS) {
+    		result = hitsRanker.rank(result.getCopy()).getCopy();
+    	}
 		java.util.Collections.sort(result.getList());
 		return result;
 	}
@@ -229,6 +233,7 @@ public class Searcher {
 			}	
 			result.append(mergedEntry);
 		}
+		System.out.println("result merged" + result.size());
 		return result;
 	}
 

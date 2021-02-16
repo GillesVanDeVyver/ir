@@ -59,6 +59,8 @@ public class Engine {
     /** For persistent indexes, we might not need to do any indexing. */
     boolean is_indexing = true;
 
+	private HITSRanker hitsRanker;
+
 
     /* ----------------------------------------------- */
 
@@ -73,7 +75,8 @@ public class Engine {
         Index index = new HashedIndex();
 //      Index index = new PersistentHashedIndex();
         indexer = new Indexer( index, kgIndex, patterns_file );
-        searcher = new Searcher( index, kgIndex );
+        hitsRanker = new HITSRanker("linksDavis.txt", "davisTitles.txt", index );
+        searcher = new Searcher( index, kgIndex, hitsRanker );
         gui = new SearchGUI( this );
         gui.init();
         /* 

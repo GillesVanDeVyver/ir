@@ -75,7 +75,23 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
 			System.out.println("representation entry" + representation);
 			throw e;
 		}
-    } 
+    }
+
+	public PostingsEntry getCopy() {
+		PostingsEntry result = new PostingsEntry();
+		result.docID = this.docID;
+		result.offsetList = getCopyOffsetList();
+		result.score = this.score;
+		return result;
+	}
+
+	private List<Integer> getCopyOffsetList() {
+		List<Integer> result = new ArrayList<Integer>();
+		for (Integer o : this.offsetList) {
+			result.add(o);
+		}
+		return result;
+	} 
     
     
 //	PostingsList result = new PostingsList();

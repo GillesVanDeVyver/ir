@@ -35,6 +35,9 @@ public class HITSRanker {
      */
     HashMap<String,Integer> titleToId = new HashMap<String,Integer>();
     
+    HashMap<Integer,String> IDToTitle = new HashMap<Integer,String>();
+
+    
     HashMap<Integer,HashMap<Integer,Boolean>> reversedLink = new HashMap<Integer,HashMap<Integer,Boolean>>();
 
 
@@ -78,7 +81,7 @@ public class HITSRanker {
         this.index = index;
         this.PR = new PageRank();
         readDocs( linksFilename, titlesFilename );
-        rank();
+//        rank();
     }
 
 
@@ -118,6 +121,7 @@ public class HITSRanker {
 			while ((line = in.readLine()) != null) {    		
 				String[] splittedLine = line.split(";");
 				titleToId.put(splittedLine[1], Integer.parseInt(splittedLine[0]));
+				IDToTitle.put(Integer.parseInt(splittedLine[0]),splittedLine[1]);
 			}
 		} catch (NumberFormatException | IOException e) {
 			e.printStackTrace();
@@ -147,33 +151,48 @@ public class HITSRanker {
      */
     private void iterate(String[] titles) {
     	
-    	Set<Integer> docIDs = new HashSet<Integer>();
+    	Set<Integer> baseIDs = new HashSet<Integer>();
+    	Set<Integer> rootIDs = new HashSet<Integer>();
+
     	for (String title: titles) {
-    		int rootID = titleToId.get(title);
-    		docIDs.add(rootID);
-    		HashMap<Integer, Boolean> outLinks = PR.link.get(rootID);
-    		if (outLinks !=null) {
-            	for (Entry<Integer, Boolean> entryOut : outLinks.entrySet()) {
-            		docIDs.add(entryOut.getKey());
-            	}
+    		Integer rootID = titleToId.get(title);
+    		if (rootID!= null) {
+    			if (rootIDs.contains(rootID)) {
+    				System.out.println("rootID" + rootID);
+    			}
+    			
+    			
+    			baseIDs.add(rootID);
+    			rootIDs.add(rootID);
+				HashMap<Integer, Boolean> outLinks = PR.link.get(rootID);
+				if (outLinks !=null) {
+		        	for (Entry<Integer, Boolean> entryOut : outLinks.entrySet()) {
+		        		baseIDs.add(entryOut.getKey());
+		        	}
+				}
+		  		HashMap<Integer, Boolean> inLinks = reversedLink.get(rootID);
+				if (inLinks !=null) {
+		        	for (Entry<Integer, Boolean> entryIn : inLinks.entrySet()) {
+		        		baseIDs.add(entryIn.getKey());
+		        	}
+				}
     		}
-      		HashMap<Integer, Boolean> inLinks = reversedLink.get(rootID);
-    		if (inLinks !=null) {
-            	for (Entry<Integer, Boolean> entryIn : inLinks.entrySet()) {
-            		docIDs.add(entryIn.getKey());
-            	}
-    		}
+
 
     	}
     	
-    	
+		System.out.println("titles.length" + titles.length);
+
+		System.out.println("rootIDs.size()" + rootIDs.size());
+		System.out.println("baseIDs.size()" + baseIDs.size());
+
     	
 
     	HashMap<Integer, Double> aOld = new HashMap<Integer,Double>();
     	HashMap<Integer, Double> hOld = new HashMap<Integer,Double>();
     	HashMap<Integer, Double> aNew = new HashMap<Integer,Double>();
     	HashMap<Integer, Double> hNew = new HashMap<Integer,Double>();
-    	for (int docID: docIDs) {
+    	for (int docID: baseIDs) {
 //    		System.out.println(docID);
 //    		System.out.println(PR.docNumber.get(String.valueOf(docID)));
 
@@ -198,19 +217,43 @@ public class HITSRanker {
     		aOld = (HashMap<Integer, Double>) aNew.clone();
     		hOld = (HashMap<Integer, Double>) hNew.clone();
     	}
+    	System.out.println("aNew.size" + aNew.size());
     	authorities = new HashMap<Integer,Double>();
-    	for (Entry<Integer, Double> e : aNew.entrySet()) {
-    		if (e.getKey()!=null) {
-        		authorities.put(Integer.parseInt(PR.docName[e.getKey()]),e.getValue());
+    	hubs = new HashMap<Integer,Double>();
+
+    	for (Integer rootID : rootIDs) {
+    		Double scoreA = 0.0;
+    		Double scoreH = 0.0;
+    		if(aNew.get(rootID)!= null) {
+    			scoreA = aNew.get(rootID);
     		}
+    		if(hNew.get(rootID)!= null) {
+    			scoreH = hNew.get(rootID);
+    		}
+    		if(PR.docName[rootID]!= null) {
+        		authorities.put(Integer.parseInt(PR.docName[rootID]),scoreA);
+        		hubs.put(Integer.parseInt(PR.docName[rootID]),scoreH);
+
+    		}
+
     	}
     	
-    	hubs = new HashMap<Integer,Double>();
-    	for (Entry<Integer, Double> e : hNew.entrySet()) {
-    		if (e.getKey()!=null) {
-        		hubs.put(Integer.parseInt(PR.docName[e.getKey()]),e.getValue());
-    		}
-    	}
+    	
+//    	for (Entry<Integer, Double> e : aNew.entrySet()) {
+//    		if (e.getKey()!=null && rootIDs.contains(e.getKey())) {
+//        		authorities.put(Integer.parseInt(PR.docName[e.getKey()]),e.getValue());
+//    		}
+//    	}
+    	
+//    	for (Entry<Integer, Double> e : hNew.entrySet()) {
+//    		if (e.getKey()!=null && rootIDs.contains(e.getKey())) {
+//        		hubs.put(Integer.parseInt(PR.docName[e.getKey()]),e.getValue());
+//    		}
+//    	}
+    	
+		System.out.println("hubs.size()" + hubs.size());
+		System.out.println("authorities.size()" + authorities.size());
+		
     	
     }
     
@@ -238,10 +281,14 @@ public class HITSRanker {
             		}
             	}
     		}
-    		result.put(e.getKey(), entryVal);
+    		if (base.containsKey(e.getKey())) {
+        		result.put(e.getKey(), entryVal);
+
+    		}
     	}
     		
 		result = normalize(result);
+		System.out.println("result.size()" + result.size());
 		return result;
     }
 
@@ -274,10 +321,73 @@ public class HITSRanker {
      */
     PostingsList rank(PostingsList post) {
         LinkedList<PostingsEntry> entryList = post.getList();
+        String[] titles = new String[entryList.size()];
+        int i =0;
         for (PostingsEntry e : entryList) {
-        	
+        	titles[i++]= getFileName(index.docNames.get(e.docID));
         }
-        return null;
+        iterate(titles);
+        System.out.println("titles.length" + titles.length);
+        HashMap<Integer,Double> scores = new HashMap<Integer,Double>(hubs);
+        double w1 = 0.5;
+        double w2 = 0.5;
+    	for (Entry<Integer, Double> e : authorities.entrySet()) {
+    		Double sortedScoresVal = scores.get(e.getKey());	
+    		if (sortedScoresVal!=null) {
+    			scores.put(e.getKey(), w1*e.getValue()+w2*sortedScoresVal);
+    		}
+    		else {
+    			scores.put(e.getKey(), w1*e.getValue());
+    		}
+    	}
+        System.out.println("scores.size()" + scores.size());
+        System.out.println("IDToTitle.size()" + IDToTitle.size());
+        System.out.println("index.docIDs.size()" + index.docIDs.size());
+        PostingsList result = new PostingsList();
+		for (String title : titles) {
+        	PostingsEntry pEntry = new PostingsEntry();
+        	Integer linksDocID = titleToId.get(title);
+        	Double score = scores.get(linksDocID);
+        	Integer docID = index.docIDs.get(title);
+        	if (docID!= null) {
+            	pEntry.docID = docID;
+            	if (score!=null) {
+                	pEntry.score = score;
+            	}
+            	else{
+            		System.out.println(title);
+                	pEntry.score = 0.0;
+            	}
+            	result.append(pEntry);
+        	}
+        }
+
+//        for (Entry<Integer, Double> e : scores.entrySet()) {
+//        	PostingsEntry pEntry = new PostingsEntry();
+//        	Integer docID = index.docIDs.get((IDToTitle.get(e.getKey())));
+//        	if (docID!=null) {
+//            	pEntry.docID = docID;
+//            	pEntry.score = e.getValue();
+//            	result.append(pEntry);
+//        	}
+//        	else {
+//            	pEntry.docID = e.getKey();
+//            	pEntry.score = e.getValue();
+//            	result.append(pEntry);
+//        	}
+//
+//        }
+//        for (Map.Entry<Integer,Double> e : sortedScores.entrySet()) {
+//            System.out.println("key" + e.getKey());
+//            System.out.println("value" + e.getValue());
+//        }
+        hubs.clear();
+        authorities.clear();
+        System.out.println("result.size()" + result.size());
+
+
+        result.sortList();
+		return result;
     }
 
 
@@ -344,6 +454,8 @@ public class HITSRanker {
         HashMap<Integer,Double> sortedAuthorities = sortHashMapByValue(authorities);
         writeToFile(sortedHubs, "hubs_top_30.txt", 30);
         writeToFile(sortedAuthorities, "authorities_top_30.txt", 30);
+        hubs.clear();
+        authorities.clear();
     }
 
 

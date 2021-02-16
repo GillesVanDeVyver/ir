@@ -83,6 +83,7 @@ public class Indexer {
                             insertIntoIndex( docID, token, offset++ );
                         }
                         index.docNames.put( docID, f.getPath() );
+                        index.docIDs.put(HITSRanker.getFileName(f.getPath()), docID );
                         index.docLengths.put( docID, offset );
                         reader.close();
                     } catch ( IOException e ) {

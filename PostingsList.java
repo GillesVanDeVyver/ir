@@ -121,6 +121,20 @@ public class PostingsList {
 	public LinkedList<PostingsEntry> getList() {
 		return list;
 	}
+	
+	public PostingsList getCopy() {
+		PostingsList result = new PostingsList();
+		result.list = this.getListCopy();
+		return result;
+	}
+	
+	private LinkedList<PostingsEntry> getListCopy() {
+		LinkedList<PostingsEntry> result = new LinkedList<PostingsEntry>();
+		for (PostingsEntry e : list) {
+			result.add(e.getCopy());
+		}
+		return result;
+	}
 
 	public void setList(LinkedList<PostingsEntry> list) {
 		this.list = list;
