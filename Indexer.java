@@ -55,11 +55,6 @@ public class Indexer {
      */
     public void processFiles( File f, boolean is_indexing ) {
         // do not try to index fs that cannot be read
-		
-
-
-    	
-    	
         if (is_indexing) {
             if ( f.canRead() ) {
                 if ( f.isDirectory() ) {
@@ -83,6 +78,8 @@ public class Indexer {
                             insertIntoIndex( docID, token, offset++ );
                         }
                         index.docNames.put( docID, f.getPath() );
+                        
+                        String docName = HITSRanker.getFileName(f.getPath());
                         index.docIDs.put(HITSRanker.getFileName(f.getPath()), docID );
                         index.docLengths.put( docID, offset );
                         reader.close();

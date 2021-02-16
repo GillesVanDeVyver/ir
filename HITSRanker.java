@@ -21,7 +21,7 @@ public class HITSRanker {
 
     /**
      *   Convergence criterion: hub and authority scores do not 
-     *   change more that EPSILON from one iteration to another.
+     *   change more that EPSILON from one iteration to another. (For 10 consecutive iterations)
      */
     final static double EPSILON = 0.001;
 
@@ -35,11 +35,15 @@ public class HITSRanker {
      */
     HashMap<String,Integer> titleToId = new HashMap<String,Integer>();
     
+    /**
+     *   Mapping from the internal document ids to titles
+     */
     HashMap<Integer,String> IDToTitle = new HashMap<Integer,String>();
 
-    
+    /**
+     *  Reciprocal of PageRank.links
+     */
     HashMap<Integer,HashMap<Integer,Boolean>> reversedLink = new HashMap<Integer,HashMap<Integer,Boolean>>();
-
 
     /**
      *   Sparse vector containing hub scores
@@ -51,8 +55,50 @@ public class HITSRanker {
      */
     HashMap<Integer,Double> authorities;
     
+    /**
+     *   PageRank object to reuse code
+     */
     PageRank PR;
 
+    /**
+     *   A helper class representing the root and base set of a query
+     */ 
+    public class HITSSet {
+    	Set<Integer> baseIDs;
+    	Set<Integer> rootIDs;
+    	
+        /**
+         *  Constructor. Construct the base set and root set from given titles
+         *  
+         *  @param titles The titles of the query
+         */
+    	public HITSSet(String[] titles) {
+        	baseIDs = new HashSet<Integer>();
+        	rootIDs = new HashSet<Integer>();
+
+        	for (String title: titles) {
+        		Integer rootID = titleToId.get(title);
+        		if (rootID!= null) {
+        			baseIDs.add(PR.docNumber.get(String.valueOf(rootID)));
+        			rootIDs.add(PR.docNumber.get(String.valueOf(rootID)));
+    				HashMap<Integer, Boolean> outLinks = PR.link.get(rootID);
+    				if (outLinks !=null) {
+    		        	for (Entry<Integer, Boolean> entryOut : outLinks.entrySet()) {
+    		        		baseIDs.add(entryOut.getKey());
+    		        	}
+    				}
+    		  		HashMap<Integer, Boolean> inLinks = reversedLink.get(rootID);
+    				if (inLinks !=null) {
+    		        	for (Entry<Integer, Boolean> entryIn : inLinks.entrySet()) {
+    		        		baseIDs.add(entryIn.getKey());
+    		        	}
+    				}
+        		}
+        	}
+    	}
+        
+
+    }
     
     /* --------------------------------------------- */
 
@@ -77,6 +123,18 @@ public class HITSRanker {
      * @param      titlesFilename  File containing the mapping between nodeIDs and pages titles
      * @param      index           The inverted index
      */
+    public HITSRanker( String linksFilename, String titlesFilename, Index index ) {
+        this.index = index;
+        this.PR = new PageRank();
+        readDocs( linksFilename, titlesFilename );
+    }
+    
+    /**
+     * Constructs the HITSRanker object
+     * 
+     *
+     * @param      engine   If this is false, all documents are ranked and the result are written to file
+     */
     public HITSRanker( String linksFilename, String titlesFilename, Index index, boolean engine ) {
         this.index = index;
         this.PR = new PageRank();
@@ -84,12 +142,6 @@ public class HITSRanker {
         if (!engine) {
           rank();
         }
-    }
-    
-    public HITSRanker( String linksFilename, String titlesFilename, Index index ) {
-        this.index = index;
-        this.PR = new PageRank();
-        readDocs( linksFilename, titlesFilename );
     }
 
 
@@ -136,6 +188,11 @@ public class HITSRanker {
 		}
     }
 
+    /**
+     * Creates a hashmap containing the inlinks for each document, similar to PageRank.links
+     *
+     * @param      link   Hashmap containing the outlinks
+     */
     private void createdReversedLinks(HashMap<Integer, HashMap<Integer, Boolean>> link) {
     	for (Map.Entry<Integer, HashMap<Integer, Boolean>> entry : link.entrySet()) {
     	    int from = entry.getKey();
@@ -152,48 +209,33 @@ public class HITSRanker {
     	} 
 		
 	}
+
 	/**
      * Perform HITS iterations until convergence
      *
      * @param      titles  The titles of the documents in the root set
      */
     private void iterate(String[] titles) {
-    	
-    	Set<Integer> baseIDs = new HashSet<Integer>();
-    	Set<Integer> rootIDs = new HashSet<Integer>();
-
-    	for (String title: titles) {
-    		Integer rootID = titleToId.get(title);
-    		if (rootID!= null) {
-    			baseIDs.add(rootID);
-    			rootIDs.add(rootID);
-				HashMap<Integer, Boolean> outLinks = PR.link.get(rootID);
-				if (outLinks !=null) {
-		        	for (Entry<Integer, Boolean> entryOut : outLinks.entrySet()) {
-		        		baseIDs.add(entryOut.getKey());
-		        	}
-				}
-		  		HashMap<Integer, Boolean> inLinks = reversedLink.get(rootID);
-				if (inLinks !=null) {
-		        	for (Entry<Integer, Boolean> entryIn : inLinks.entrySet()) {
-		        		baseIDs.add(entryIn.getKey());
-		        	}
-				}
-    		}
-
-
-    	}
-
-    	
-
+    	HITSSet hitsSet = new HITSSet(titles);
+    	iterate(titles,hitsSet.baseIDs, hitsSet.rootIDs);
+    }
+    
+	/**
+     * Perform HITS iterations until convergence
+     *
+     * @param      titles  The titles of the documents in the root set
+     * @param      baseIDs  Set of docIDs in the base set
+     * @param      rootIDs  Set of docIDs in the root set
+     */
+    private void iterate(String[] titles, Set<Integer> baseIDs, Set<Integer> rootIDs) {
     	HashMap<Integer, Double> aOld = new HashMap<Integer,Double>();
     	HashMap<Integer, Double> hOld = new HashMap<Integer,Double>();
     	HashMap<Integer, Double> aNew = new HashMap<Integer,Double>();
     	HashMap<Integer, Double> hNew = new HashMap<Integer,Double>();
     	for (int docID: baseIDs) {
 
-    		aOld.put(PR.docNumber.get(String.valueOf(docID)),1.0);
-    		hOld.put(PR.docNumber.get(String.valueOf(docID)),1.0);
+    		aOld.put(docID,1.0);
+    		hOld.put(docID,1.0);
     	}
     	int convergedCount = 10;
     	while (convergedCount!=0) {
@@ -205,32 +247,44 @@ public class HITSRanker {
     		else {
     			convergedCount = 10;
     		}
-        	
     		aOld = (HashMap<Integer, Double>) aNew.clone();
     		hOld = (HashMap<Integer, Double>) hNew.clone();
     	}
     	authorities = new HashMap<Integer,Double>();
     	hubs = new HashMap<Integer,Double>();
 
-    	for (Integer rootID : rootIDs) {
+    	for (Integer baseID : baseIDs) {
     		Double scoreA = 0.0;
     		Double scoreH = 0.0;
-    		if(aNew.get(rootID)!= null) {
-    			scoreA = aNew.get(rootID);
+    		if(aNew.get(baseID)!= null) {
+    			scoreA = aNew.get(baseID);
     		}
-    		if(hNew.get(rootID)!= null) {
-    			scoreH = hNew.get(rootID);
+    		if(hNew.get(baseID)!= null) {
+    			scoreH = hNew.get(baseID);
     		}
-    		if(PR.docName[rootID]!= null) {
-        		authorities.put(Integer.parseInt(PR.docName[rootID]),scoreA);
-        		hubs.put(Integer.parseInt(PR.docName[rootID]),scoreH);
-
+    		if(PR.docName[baseID]!= null) {
+        		authorities.put(Integer.parseInt(PR.docName[baseID]),scoreA);
+        		hubs.put(Integer.parseInt(PR.docName[baseID]),scoreH);
+    		}
+    		else {
+    			System.out.println("PR.docName[baseID] null");
     		}
 
     	}
-    }
+//    	System.out.println(hubs.size());
+//    	System.out.println("rootIDs.size()" + rootIDs.size());
+//    	System.out.println("baseIDs.size()" + baseIDs.size());
+    }    
+
     
-    
+	/**
+     * Checks if the elements in the given hashmap elements differ more than EPSILON 
+     *
+     * @param      vec1  The first hashmap
+     * @param      vec2  The second hashmap
+     * 
+     * @return true if the elements differ, false otherwise
+     */
     private boolean diff(HashMap<Integer, Double> vec1, HashMap<Integer, Double> vec2) {
     	for (Entry<Integer, Double> e : vec1.entrySet()) {
     		if (Math.abs(vec1.get(e.getKey())-vec2.get(e.getKey()))>EPSILON) {
@@ -240,7 +294,14 @@ public class HITSRanker {
     	return false;
 	}
 
-
+	/**
+     * Performs sparse matrix vector product
+     *
+     * @param      base  The vector to be multiplied
+     * @param      links  The matrix to be multiplied with
+     * 
+     * @return The resulting vector as a hashmap
+     */
 	HashMap<Integer, Double> sparseMatrixVectorMul(HashMap<Integer,Double> base,HashMap<Integer,HashMap<Integer,Boolean>>links) {
 		HashMap<Integer,Double> result = new HashMap<Integer,Double>();
 		for (Entry<Integer, Double> e : base.entrySet()) {
@@ -256,24 +317,34 @@ public class HITSRanker {
     		}
     		if (base.containsKey(e.getKey())) {
         		result.put(e.getKey(), entryVal);
-
     		}
-    	}
-    		
+    	}	
 		result = normalize(result);
 		return result;
     }
 
-
+	/**
+     * Normalizes the given vector with euclidean norm
+     *
+     * @param      vec  The vector to be normalized as a hashmap
+     * 
+     * @return The normalized vector
+     */
     private HashMap<Integer, Double> normalize(HashMap<Integer, Double> vec) {
     	double norm = norm(vec);
     	for (Entry<Integer, Double> e : vec.entrySet()) {
     		vec.put(e.getKey(), e.getValue()/norm);
     	}
-
     	return vec;
 	}
     
+	/**
+     * Calculates the euclidean norm of the given vector
+     *
+     * @param      vec  The vector
+     * 
+     * @return The norm
+     */
     private double norm(HashMap<Integer, Double> vec) {
     	double norm = 0;
     	for (Entry<Integer, Double> e : vec.entrySet()) {
@@ -298,36 +369,37 @@ public class HITSRanker {
         for (PostingsEntry e : entryList) {
         	titles[i++]= getFileName(index.docNames.get(e.docID));
         }
-        iterate(titles);
+        
+    	HITSSet hitsSet = new HITSSet(titles);
+    	iterate(titles,hitsSet.baseIDs, hitsSet.rootIDs);
         HashMap<Integer,Double> scores = new HashMap<Integer,Double>(hubs);
         double w1 = 0.5;
         double w2 = 0.5;
-    	for (Entry<Integer, Double> e : authorities.entrySet()) {
-    		Double sortedScoresVal = scores.get(e.getKey());	
-    		if (sortedScoresVal!=null) {
-    			scores.put(e.getKey(), w1*e.getValue()+w2*sortedScoresVal);
-    		}
-    		else {
-    			scores.put(e.getKey(), w1*e.getValue());
+        PostingsList result = new PostingsList();
+     	for (Entry<Integer, Double> e : authorities.entrySet()) {
+     		Double sortedScoresVal = scores.get(e.getKey());	
+     		scores.put(e.getKey(), w1*e.getValue()+w2*sortedScoresVal);
+     	}
+    	// rootIDs or baseIDs to use?
+    	for (Integer linkRootID: hitsSet.rootIDs) {
+    		Integer fileNameID = Integer.parseInt(PR.docName[linkRootID]);
+    		String title = HITSRanker.getFileName(IDToTitle.get(fileNameID));
+    		Integer realID = index.docIDs.get(title);
+    		if (realID != null) {
+        		Double combinedScore = scores.get(fileNameID);	
+	        	PostingsEntry pEntry = new PostingsEntry();
+            	pEntry.docID = realID;
+                pEntry.score = combinedScore;
+            	result.append(pEntry);
     		}
     	}
-        PostingsList result = new PostingsList();
-		for (String title : titles) {
-        	PostingsEntry pEntry = new PostingsEntry();
-        	Integer linksDocID = titleToId.get(title);
-        	Double score = scores.get(linksDocID);
-        	Integer docID = index.docIDs.get(title);
-        	if (docID!= null) {
-            	pEntry.docID = docID;
-            	if (score!=null) {
-                	pEntry.score = score;
-            	}
-            	else{
-                	pEntry.score = 0.0;
-            	}
-            	result.append(pEntry);
-        	}
-        }
+//    	System.out.println("hitsSet.baseIDs.size()" + hitsSet.baseIDs.size());
+//    	System.out.println("hitsSet.rootIDs.size()" + hitsSet.rootIDs.size());
+//
+//    	System.out.println("hubs.size()" + hubs.size());
+//    	System.out.println("authorities.size()" + authorities.size());
+//
+//    	System.out.println("result.size()" + result.size());
         result.sortList();
 		return result;
     }
@@ -345,13 +417,11 @@ public class HITSRanker {
             return null;
         } else {
             List<Map.Entry<Integer,Double> > list = new ArrayList<Map.Entry<Integer,Double> >(map.entrySet());
-      
             Collections.sort(list, new Comparator<Map.Entry<Integer,Double>>() {
                 public int compare(Map.Entry<Integer,Double> o1, Map.Entry<Integer,Double> o2) { 
                     return (o2.getValue()).compareTo(o1.getValue()); 
                 } 
             }); 
-              
             HashMap<Integer,Double> res = new LinkedHashMap<Integer,Double>(); 
             for (Map.Entry<Integer,Double> el : list) { 
                 res.put(el.getKey(), el.getValue()); 

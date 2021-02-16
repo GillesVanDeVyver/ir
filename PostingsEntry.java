@@ -87,9 +87,7 @@ public class PostingsEntry implements Comparable<PostingsEntry>, Serializable {
 
 	private List<Integer> getCopyOffsetList() {
 		List<Integer> result = new ArrayList<Integer>();
-		for (Integer o : this.offsetList) {
-			result.add(o);
-		}
+		result.addAll(this.offsetList);
 		return result;
 	} 
     

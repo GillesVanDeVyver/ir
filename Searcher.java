@@ -33,15 +33,22 @@ public class Searcher {
     /** The k-gram index to be searched by this Searcher */
     KGramIndex kgIndex;
     
+    /** Mapping from docIDs to docScores */
     public HashMap<Integer, Double> pageRankVector = new HashMap<Integer,Double>();
 
+    /** Mapping from docNames to docScores */
 	private HashMap<String, Double> pageRankScores = new HashMap<String, Double>();
 
+    /** HITSRanker for resuse of code */
 	private HITSRanker hitsRanker;;
     
-//    Integer[] sortedPageRanks;
-
-    
+    /**
+     * Constructs the Searcher object and reads the PageRank result from disk
+     *
+     * @param      index           The index
+     * @param      kgIndex         Unused
+     * @param      index           hitsRanker for hits algo
+     */
     public Searcher( Index index, KGramIndex kgIndex, HITSRanker hitsRanker ) {
         this.index = index;
         this.kgIndex = kgIndex;
@@ -49,6 +56,11 @@ public class Searcher {
         readPageRank("PageRankResult.txt");
     }
     
+    /**
+     * Reads the PageRank result from disk
+     *
+     * @param      fName           The name of the file with the pagerank result
+     */
     public void readPageRank(String fName) {
 	    try {
     	    BufferedReader in = new BufferedReader( new FileReader( fName ));
@@ -63,18 +75,17 @@ public class Searcher {
 				double score = Double.parseDouble(splittedLine[1]);
 
 				pageRankScores.put(docName, score);
-			}
-
-
-			
-			
+			}	
 		} catch (NumberFormatException | IOException e) {
 			e.printStackTrace();
 		}
     }
     
+    /**
+     * Construct the PageRankVector from the pageRankScores vector
+     *
+     */
     public void initPageRankVector() {
-		
     	for (Entry<Integer, String> e : index.docNames.entrySet()) {
     		int docID = e.getKey();
     		String docName = HITSRanker.getFileName(e.getValue());
@@ -83,7 +94,6 @@ public class Searcher {
     			docScore = pageRankScores.get(docName);
     		}
     		pageRankVector.put(docID, docScore);
-
     	}
     }
     
@@ -119,7 +129,17 @@ public class Searcher {
 
     }
     
-
+    /**
+     * Performs ranked search according to the given ranking type and normalization type
+     * 
+     * @param term 			The query term
+     * @param query			The query
+     * @param rankingType 	The ranking type selected
+     * @param normType		Euclidean or Manhattan
+     * 
+     * @return 				PostingsList sorted on score
+     *
+     */
 	private PostingsList rankedsearch(ArrayList<QueryTerm> term, Query query , RankingType rankingType, NormalizationType normType) {
 		PostingsList result = new PostingsList();
     	int N = Index.docNames.size();
@@ -127,18 +147,12 @@ public class Searcher {
 		while(i<term.size()) {
 			String token = term.get(i).term;
 			PostingsList pList = index.getPostings(token);
-	    	LinkedList<PostingsEntry> eList = pList.getCopy().getList();
-
+	    	LinkedList<PostingsEntry> eList = pList.getList();
 	    		for (PostingsEntry e : eList){
-	
 		        	switch(rankingType) {
 						case TF_IDF:
 				    		// tf = how many times the term appears in the doc
 				    		int tf = e.offsetList.size();
-	//			    		Integer docLength = Index.docLengths.get(e.docID);
-
-				    		
-				    		
 				    		Double docLength;
 				    		if (normType == NormalizationType.EUCLIDEAN) {
 				    			docLength = index.euclidDocLengths.get(e.docID);
@@ -151,7 +165,7 @@ public class Searcher {
 				    		float idf = (float) Math.log(frac);
 				    		
 						
-						// multiply tf by idf gives weight for term
+				    		// multiply tf by idf gives weight for term
 				    		e.score = ((float) tf)*idf/docLength;
 				    		
 				    		if (e.score >Double.MAX_VALUE) {
@@ -159,13 +173,11 @@ public class Searcher {
 				    			System.out.println(index.docNames.get(e.docID));
 				    			
 				    		}
-				    		
-				    		
 				    		// for task 2.3
-		//		    		e.score = idf;
-		//		    		System.out.println("N" + N);
-		//		    		System.out.println("eList.size()"+eList.size());
-		//		    		System.out.println("frac"+frac);
+				    		// e.score = idf;
+				    		// System.out.println("N" + N);
+				    		// System.out.println("eList.size()"+eList.size());
+				    		// System.out.println("frac"+frac);
 				    		break;
 						case PAGERANK:
 							e.score = pageRankVector.get(e.docID);
@@ -189,7 +201,6 @@ public class Searcher {
 							break;
 		        	}
 		    	}
-	    	
 	    	if (i==0) {
 	    		result = (PostingsList) pList;
 	    	}
@@ -202,10 +213,19 @@ public class Searcher {
     	if (rankingType == rankingType.HITS) {
     		result = hitsRanker.rank(result);
     	}
-		java.util.Collections.sort(result.getList());
-		return result;
+    	PostingsList copy = new PostingsList();
+    	copy = result.getCopy();
+		java.util.Collections.sort(copy.getList());
+		return copy;
 	}
 
+    /**
+     * Merges two postingslists, taking the union and adding scores on matches
+     * 
+     * @param pList1 		The first postingslist
+     * @param pList1 		The second postingslist
+     *
+     */
 	private PostingsList rankedmMerge(PostingsList pList1, PostingsList pList2) {
 		int ind1=0;
 		int ind2=0;
@@ -261,7 +281,6 @@ public class Searcher {
 	    	result = mergeQueryUnranked(result,list2,queryType);
 			i++;
 		}
-		
         return result;
 	}
 
@@ -294,17 +313,6 @@ public class Searcher {
 		return result;	
 	
 	}
-
-//	private PostingsList rankedQuery(PostingsList list1, PostingsList list2, QueryType queryType) {
-//		PostingsEntry term = list1.get(0);
-//    	for (Entry<Integer, Integer> entry : Index.docLengths.entrySet()) {
-//    	    Integer docID = entry.getKey();
-//    	    Integer docLength = entry.getValue();
-//    	    
-//    	}
-//		
-//		return null;
-//	}
 
 	private PostingsList findConsecutive(PostingsEntry e1, PostingsEntry e2, PostingsList result) {
 		List<Integer> offsetList1 = e1.offsetList;

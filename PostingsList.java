@@ -128,7 +128,7 @@ public class PostingsList {
 		return result;
 	}
 	
-	private LinkedList<PostingsEntry> getListCopy() {
+	public LinkedList<PostingsEntry> getListCopy() {
 		LinkedList<PostingsEntry> result = new LinkedList<PostingsEntry>();
 		for (PostingsEntry e : list) {
 			result.add(e.getCopy());
